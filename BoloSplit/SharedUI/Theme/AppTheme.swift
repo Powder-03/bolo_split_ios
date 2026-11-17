@@ -21,12 +21,16 @@ enum AppTheme {
 
     static func categoryIcon(for category: String?) -> String {
         switch (category ?? "").lowercased() {
-        case "food", "dining", "dinner", "lunch", "coffee":
+        case "food", "dining", "dinner", "lunch", "coffee", "chai":
             return "fork.knife"
-        case "travel", "petrol", "fuel", "cab", "uber", "transport":
+        case "fuel", "petrol", "diesel":
+            return "fuelpump.fill"
+        case "travel", "cab", "uber", "transport":
             return "car.fill"
         case "groceries", "grocery":
             return "cart.fill"
+        case "shopping", "clothes", "amazon":
+            return "bag.fill"
         case "rent", "utilities", "bills", "electricity":
             return "house.fill"
         case "entertainment", "movies":

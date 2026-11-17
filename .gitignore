@@ -4,6 +4,8 @@ xcuserdata/
 *.xcuserdatad/
 *.xcuserstate
 *.xcscmblueprint
+xcshareddata/
+*.xcshareddata/
 
 ## Build & Derived Data
 build/

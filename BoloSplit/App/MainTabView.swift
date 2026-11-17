@@ -10,6 +10,7 @@ import SwiftUI
 enum AppTab: Hashable {
     case friends
     case groups
+    case personal
     case activity
     case account
 }
@@ -17,7 +18,17 @@ enum AppTab: Hashable {
 struct MainTabView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var selectedTab: AppTab = .friends
-    @State private var showVoicePlaceholder = false
+
+    private var voicePresentationBinding: Binding<Bool> {
+        Binding(
+            get: { environment.presentedVoiceViewModel != nil },
+            set: { isPresented in
+                if !isPresented {
+                    environment.dismissVoiceOverlay()
+                }
+            }
+        )
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -33,6 +44,12 @@ struct MainTabView: View {
                         Label("Groups", systemImage: "person.3.fill")
                     }
                     .tag(AppTab.groups)
+
+                SelfTabView(viewModel: environment.selfViewModel)
+                    .tabItem {
+                        Label("Self", systemImage: "person.fill")
+                    }
+                    .tag(AppTab.personal)
 
                 ActivityTabView(viewModel: environment.activityViewModel)
                     .tabItem {
@@ -50,9 +67,9 @@ struct MainTabView: View {
             }
             .tint(AppTheme.brand)
 
-            // Floating Siri-like "Bolo" Mic Trigger (wired to SiriVoiceOverlayView in Phase 3)
+            // Floating Siri-like "Bolo" Mic Trigger
             Button {
-                showVoicePlaceholder = true
+                environment.openVoiceOverlay()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "mic.fill")
@@ -77,41 +94,13 @@ struct MainTabView: View {
             .padding(.bottom, 68)
             .accessibilityLabel("Speak expense")
         }
-        .sheet(isPresented: $showVoicePlaceholder) {
-            VoiceComingSoonSheet()
-                .presentationDetents([.height(260)])
-                .presentationBackground(.ultraThinMaterial)
+        .sheet(isPresented: voicePresentationBinding) {
+            if let voiceViewModel = environment.presentedVoiceViewModel {
+                SiriVoiceOverlayView(viewModel: voiceViewModel)
+                    .presentationDetents([.height(500), .large])
+                    .presentationCornerRadius(32)
+                    .presentationBackground(.ultraThinMaterial)
+            }
         }
-    }
-}
-
-private struct VoiceComingSoonSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Circle()
-                .fill(LinearGradient(colors: [.teal, .mint], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 68, height: 68)
-                .overlay {
-                    Image(systemName: "waveform")
-                        .font(.title)
-                        .foregroundStyle(.white)
-                }
-
-            Text("Siri-Like Voice Overlay")
-                .font(.title3.bold())
-
-            Text("Ready for Phase 3: tap Bolo, speak your expense in Hinglish/English, tap End, and it's added instantly.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-
-            Button("Close") { dismiss() }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.brand)
-        }
-        .padding()
     }
 }

@@ -45,17 +45,21 @@ final class ActivityTabViewModel {
         isLoading = true
         errorMessage = nil
         do {
-            async let expensesTask = ledgerService.fetchExpenses(groupId: nil, limit: 50, offset: 0)
+            async let expensesTask = ledgerService.fetchExpenses(groupId: nil, scope: nil, limit: 50, offset: 0)
             async let settlementsTask = ledgerService.fetchSettlements(friendId: nil, groupId: nil, limit: 50, offset: 0)
 
             let (expenses, settlements) = try await (expensesTask, settlementsTask)
 
             let expenseEntries = expenses.map { exp in
-                ActivityFeedEntry(
+                let isSolo = exp.groupId == nil && exp.splits.count <= 1
+                let subtitle = isSolo
+                    ? "Self (Personal) • \(exp.category?.capitalized ?? "General")"
+                    : "\(exp.payerName ?? "Someone") paid \(CurrencyFormatter.formatINR(exp.amount))"
+                return ActivityFeedEntry(
                     id: exp.id,
                     date: exp.expenseDate,
                     title: exp.description,
-                    subtitle: "\(exp.payerName ?? "Someone") paid \(CurrencyFormatter.formatINR(exp.amount))",
+                    subtitle: subtitle,
                     amount: exp.amount,
                     category: exp.category,
                     kind: .expense(exp)

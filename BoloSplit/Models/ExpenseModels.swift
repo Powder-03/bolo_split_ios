@@ -57,3 +57,30 @@ struct ExpenseRead: Codable, Identifiable, Equatable, Sendable {
     let updatedAt: Date
     let splits: [ExpenseSplitRead]
 }
+
+// MARK: - Solo / Self Expenses
+
+struct SelfExpenseCreate: Codable, Sendable {
+    let description: String
+    @JSONDecimal var amount: Decimal
+    let currency: String
+    let category: String?
+    let expenseDate: Date?
+}
+
+struct SelfCategoryStat: Codable, Identifiable, Equatable, Sendable {
+    let category: String
+    @JSONDecimal var totalAmount: Decimal
+    let count: Int
+
+    var id: String { category }
+}
+
+struct SelfExpensesSummary: Codable, Equatable, Sendable {
+    @JSONDecimal var totalSpending: Decimal
+    @JSONDecimal var thisMonthSpending: Decimal
+    let totalCount: Int
+    let currency: String
+    let categories: [SelfCategoryStat]
+    let expenses: [ExpenseRead]
+}
