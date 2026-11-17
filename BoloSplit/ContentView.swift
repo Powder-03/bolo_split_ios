@@ -2,95 +2,127 @@
 //  ContentView.swift
 //  BoloSplit
 //
-//  Phase 0 bootstrap view: verifies connectivity to the Render backend (/health).
+//  Root view switching between LoginView and authenticated app shell.
 //
 
 import SwiftUI
 
-private struct HealthResponse: Codable {
-    let status: String
-    let service: String
-    let environment: String
-}
-
 struct ContentView: View {
-    @State private var statusText = "Checking backend..."
-    @State private var detailText = AppConfig.baseURL.absoluteString
-    @State private var isLoading = false
-    @State private var isHealthy = false
+    @Environment(AppEnvironment.self) private var environment
 
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: isHealthy ? "checkmark.circle.fill" : "waveform.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(isHealthy ? .green : .teal)
-
-            Text("BoloSplit iOS")
-                .font(.largeTitle.bold())
-
-            VStack(spacing: 6) {
-                Text(statusText)
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-
-                Text(detailText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+        Group {
+            if environment.authViewModel.isAuthenticated {
+                PhaseOneVerifiedView(viewModel: environment.authViewModel)
+            } else {
+                LoginView(viewModel: environment.authViewModel)
             }
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-
-            Button {
-                Task { await checkHealth() }
-            } label: {
-                HStack {
-                    if isLoading {
-                        ProgressView()
-                            .tint(.white)
-                    }
-                    Text(isLoading ? "Connecting (may wake Render)..." : "Ping /health")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.teal)
-            .disabled(isLoading)
         }
-        .padding(24)
-        .task {
-            await checkHealth()
-        }
+        .animation(.easeInOut(duration: 0.25), value: environment.authViewModel.isAuthenticated)
     }
+}
 
-    private func checkHealth() async {
-        isLoading = true
-        isHealthy = false
-        statusText = "Connecting to Render..."
-        detailText = AppConfig.baseURL.appendingPathComponent("health").absoluteString
+/// Temporary Phase 1 shell proving authenticated GET /balances works with Firebase JWT or Dev Email.
+private struct PhaseOneVerifiedView: View {
+    @Bindable var viewModel: AuthViewModel
 
-        var request = URLRequest(url: AppConfig.baseURL.appendingPathComponent("health"))
-        request.timeoutInterval = AppConfig.requestTimeout
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                if let user = viewModel.currentUser {
+                    VStack(spacing: 6) {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .font(.system(size: 52))
+                            .foregroundStyle(.teal)
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                statusText = "Server returned an error"
-                return
+                        Text("Welcome, \(user.displayName)")
+                            .font(.title2.bold())
+
+                        Text(user.email)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Text(user.isDevMode ? "Auth: Dev X-User-Email" : "Auth: Firebase Google JWT")
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.teal.opacity(0.14), in: Capsule())
+                    }
+                }
+
+                VStack(spacing: 12) {
+                    if viewModel.isVerifyingBackend {
+                        ProgressView()
+                        Text("Verifying GET /balances...")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else if let summary = viewModel.balanceSummary {
+                        Text("Authenticated API Connected")
+                            .font(.headline)
+                            .foregroundStyle(.green)
+
+                        HStack(spacing: 20) {
+                            VStack {
+                                Text("You are owed")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(CurrencyFormatter.formatINR(summary.totalOwedToYou))
+                                    .font(.headline)
+                                    .foregroundStyle(.green)
+                            }
+                            Divider().frame(height: 32)
+                            VStack {
+                                Text("You owe")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(CurrencyFormatter.formatINR(summary.totalYouOwe))
+                                    .font(.headline)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                        .padding(.top, 4)
+                    } else if let err = viewModel.verificationError {
+                        Text("Auth Check Failed")
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                        Text(err)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+
+                Button("Re-test GET /balances") {
+                    Task { await viewModel.verifyAuthenticatedSession() }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.teal)
+                .disabled(viewModel.isVerifyingBackend)
+
+                Spacer()
             }
-            let decoded = try JSONDecoder().decode(HealthResponse.self, from: data)
-            isHealthy = decoded.status.lowercased() == "healthy"
-            statusText = "Backend: \(decoded.status.uppercased())"
-            detailText = "\(decoded.service) • \(decoded.environment)"
-        } catch {
-            statusText = "Connection failed"
-            detailText = error.localizedDescription
+            .padding(24)
+            .navigationTitle("BoloSplit")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Sign Out", role: .destructive) {
+                        viewModel.signOut()
+                    }
+                }
+            }
+            .task {
+                if viewModel.balanceSummary == nil {
+                    await viewModel.verifyAuthenticatedSession()
+                }
+            }
         }
-        isLoading = false
     }
 }
 
 #Preview {
     ContentView()
+        .environment(AppEnvironment())
 }

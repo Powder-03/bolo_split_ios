@@ -20,3 +20,7 @@ DerivedData/
 .DS_Store
 .AppleDouble
 .LSOverride
+
+## Firebase & Secrets
+GoogleService-Info*.plist
+*GoogleService-Info*.plist

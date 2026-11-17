@@ -10,9 +10,37 @@
       "Base",
     ],
   },
-  "files": [
-    { "kind": "folder", "path": "BoloSplit", "target-membership": [ "BoloSplit" ] },
+  "packages": [
     {
+      "kind": "remote",
+      "repository": "https://github.com/firebase/firebase-ios-sdk",
+      "version": {
+        "up-to-next-major-version": "13.2.0",
+      },
+    }, {
+      "kind": "remote",
+      "repository": "https://github.com/google/GoogleSignIn-iOS",
+      "version": {
+        "up-to-next-major-version": "10.1.0",
+      },
+    },
+  ],
+  "files": [
+    {
+      "kind": "folder",
+      "path": "BoloSplit",
+      "target-membership": [
+        "BoloSplit",
+      ],
+      "membership-exceptions": [
+        {
+          "target": "BoloSplit",
+          "exclusions": [
+            "Info.plist",
+          ],
+        },
+      ],
+    }, {
       "kind": "group",
       "name": "Products",
       "children": [
@@ -31,6 +59,25 @@
         "frameworks",
         "resources",
       ],
+      "package-product-members": [
+        {
+          "package": "GoogleSignIn-iOS",
+          "product-name": "GoogleSignIn",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "GoogleSignIn-iOS",
+          "product-name": "GoogleSignInSwift",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "firebase-ios-sdk",
+          "product-name": "FirebaseAuth",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "firebase-ios-sdk",
+          "product-name": "FirebaseCore",
+          "build-phase": { "build-phase": "frameworks" },
+        },
+      ],
       "build-settings": {
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
@@ -38,6 +85,7 @@
         "CURRENT_PROJECT_VERSION": "1",
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_FILE": "BoloSplit/Info.plist",
         "INFOPLIST_KEY_NSMicrophoneUsageDescription": "BoloSplit uses your microphone to record voice expenses in Hindi, Hinglish, and English.",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",
