@@ -1,0 +1,22 @@
+# Xcode
+## User settings
+xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+*.xcscmblueprint
+
+## Build & Derived Data
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Swift Package Manager
+.build/
+.swiftpm/xcode/package.resolved
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
