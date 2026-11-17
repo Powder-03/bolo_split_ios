@@ -23,6 +23,7 @@ final class FriendsTabViewModel {
     var balanceSummary: BalanceSummary?
     var friendRows: [FriendRowItem] = []
     var isLoading = false
+    var isSavingFriend = false
     var errorMessage: String?
 
     init(ledgerService: LedgerServiceProtocol) {
@@ -43,6 +44,43 @@ final class FriendsTabViewModel {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    func addFriend(
+        name: String,
+        email: String?,
+        phone: String?,
+        nickname: String?,
+        aliasesText: String
+    ) async -> Result<FriendRead, Error> {
+        let cleanEmail = email?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanPhone = phone?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNickname = nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let parsedAliases = aliasesText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+
+        let payload = FriendCreate(
+            friendEmail: (cleanEmail?.isEmpty == false) ? cleanEmail : nil,
+            friendPhone: (cleanPhone?.isEmpty == false) ? cleanPhone : nil,
+            friendName: cleanName.isEmpty ? nil : cleanName,
+            nickname: (cleanNickname?.isEmpty == false) ? cleanNickname : nil,
+            aliases: parsedAliases
+        )
+
+        isSavingFriend = true
+        defer { isSavingFriend = false }
+
+        do {
+            let created = try await ledgerService.createFriend(payload)
+            await loadData()
+            return .success(created)
+        } catch {
+            return .failure(error)
+        }
     }
 
     func clear() {

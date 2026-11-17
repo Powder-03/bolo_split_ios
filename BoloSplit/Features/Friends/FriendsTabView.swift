@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct FriendsTabView: View {
+    @Environment(AppEnvironment.self) private var environment
     @Bindable var viewModel: FriendsTabViewModel
+    @State private var showAddFriend = false
 
     var body: some View {
         NavigationStack {
@@ -36,20 +38,37 @@ struct FriendsTabView: View {
                         EmptyStateView(
                             systemImage: "person.2.fill",
                             title: "No friends yet",
-                            subtitle: "Add a friend or tap the mic to split your first expense."
+                            subtitle: "Tap + to add a friend, then speak to Bolo to split your first expense."
                         )
                     }
                     .listRowBackground(Color.clear)
                 } else {
                     Section("Friends") {
                         ForEach(viewModel.friendRows) { friend in
-                            FriendBalanceRow(friend: friend)
+                            NavigationLink {
+                                FriendDetailView(
+                                    viewModel: environment.makeFriendDetailViewModel(friend: friend)
+                                )
+                            } label: {
+                                FriendBalanceRow(friend: friend)
+                            }
                         }
                     }
                 }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Friends")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddFriend = true
+                    } label: {
+                        Image(systemName: "person.badge.plus")
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityLabel("Add friend")
+                }
+            }
             .overlay {
                 if viewModel.isLoading && viewModel.balanceSummary == nil {
                     ProgressView("Loading balances...")
@@ -62,6 +81,9 @@ struct FriendsTabView: View {
                 if viewModel.balanceSummary == nil {
                     await viewModel.loadData()
                 }
+            }
+            .sheet(isPresented: $showAddFriend) {
+                AddFriendSheet(viewModel: viewModel)
             }
         }
     }

@@ -10,12 +10,16 @@ import Foundation
 protocol LedgerServiceProtocol {
     func fetchBalances(groupId: UUID?) async throws -> BalanceSummary
     func fetchFriends() async throws -> [FriendRead]
+    func createFriend(_ payload: FriendCreate) async throws -> FriendRead
+    func fetchBilateralFeed(friendId: UUID, limit: Int, offset: Int) async throws -> BilateralActivityFeed
     func fetchGroups() async throws -> [GroupRead]
     func fetchExpenses(groupId: UUID?, scope: String?, limit: Int, offset: Int) async throws -> [ExpenseRead]
     func fetchSelfExpenses(limit: Int, offset: Int, category: String?, month: Int?, year: Int?) async throws -> SelfExpensesSummary
     func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> ExpenseRead
     func deleteExpense(id: UUID) async throws
     func fetchSettlements(friendId: UUID?, groupId: UUID?, limit: Int, offset: Int) async throws -> [SettlementRead]
+    func createSettlement(_ payload: SettlementCreate) async throws -> SettlementRead
+    func deleteSettlement(id: UUID) async throws
 }
 
 final class LedgerService: LedgerServiceProtocol {
@@ -35,6 +39,19 @@ final class LedgerService: LedgerServiceProtocol {
 
     func fetchFriends() async throws -> [FriendRead] {
         try await apiClient.request(.get("/friends"))
+    }
+
+    func createFriend(_ payload: FriendCreate) async throws -> FriendRead {
+        let endpoint = try Endpoint.post("/friends", body: payload)
+        return try await apiClient.request(endpoint)
+    }
+
+    func fetchBilateralFeed(friendId: UUID, limit: Int = 50, offset: Int = 0) async throws -> BilateralActivityFeed {
+        let query = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset)),
+        ]
+        return try await apiClient.request(.get("/friends/\(friendId.uuidString)/expenses", queryItems: query))
     }
 
     func fetchGroups() async throws -> [GroupRead] {
@@ -99,5 +116,14 @@ final class LedgerService: LedgerServiceProtocol {
             query.append(URLQueryItem(name: "group_id", value: groupId.uuidString))
         }
         return try await apiClient.request(.get("/settlements", queryItems: query))
+    }
+
+    func createSettlement(_ payload: SettlementCreate) async throws -> SettlementRead {
+        let endpoint = try Endpoint.post("/settlements", body: payload)
+        return try await apiClient.request(endpoint)
+    }
+
+    func deleteSettlement(id: UUID) async throws {
+        try await apiClient.requestVoid(.delete("/settlements/\(id.uuidString)"))
     }
 }

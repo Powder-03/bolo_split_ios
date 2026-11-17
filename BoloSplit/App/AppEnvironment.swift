@@ -63,6 +63,36 @@ final class AppEnvironment {
         )
     }
 
+    func makeFriendDetailViewModel(friend: FriendRowItem) -> FriendDetailViewModel {
+        FriendDetailViewModel(
+            friend: friend,
+            ledgerService: ledgerService,
+            onLedgerMutated: { [weak self] in
+                await self?.refreshAllFeeds()
+            }
+        )
+    }
+
+    func makeSettleUpViewModel(
+        friendId: UUID,
+        friendName: String,
+        netBalance: Decimal,
+        groupId: UUID? = nil,
+        onSettled: (() async -> Void)? = nil
+    ) -> SettleUpViewModel {
+        SettleUpViewModel(
+            friendId: friendId,
+            friendName: friendName,
+            netBalance: netBalance,
+            groupId: groupId,
+            ledgerService: ledgerService,
+            onSettled: { [weak self] in
+                await onSettled?()
+                await self?.refreshAllFeeds()
+            }
+        )
+    }
+
     func openVoiceOverlay(groupId: UUID? = nil, groupName: String? = nil) {
         presentedVoiceViewModel = makeVoiceViewModel(groupId: groupId, groupName: groupName)
     }
