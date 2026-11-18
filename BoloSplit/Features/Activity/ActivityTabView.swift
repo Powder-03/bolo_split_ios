@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ActivityTabView: View {
+    @Environment(AppEnvironment.self) private var environment
     @Bindable var viewModel: ActivityTabViewModel
 
     var body: some View {
@@ -35,7 +36,42 @@ struct ActivityTabView: View {
                 } else {
                     Section("Recent Activity") {
                         ForEach(viewModel.entries) { entry in
-                            ActivityRow(entry: entry)
+                            switch entry.kind {
+                            case .expense(let expense):
+                                NavigationLink {
+                                    ExpenseDetailView(
+                                        viewModel: environment.makeExpenseDetailViewModel(
+                                            expenseId: expense.id,
+                                            initialExpense: expense
+                                        )
+                                    )
+                                } label: {
+                                    ActivityRow(entry: entry)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await viewModel.deleteEntry(entry)
+                                            await environment.refreshAllFeeds()
+                                        }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+
+                            case .settlement:
+                                ActivityRow(entry: entry)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                        Button(role: .destructive) {
+                                            Task {
+                                                await viewModel.deleteEntry(entry)
+                                                await environment.refreshAllFeeds()
+                                            }
+                                        } label: {
+                                            Label("Undo", systemImage: "arrow.uturn.backward")
+                                        }
+                                    }
+                            }
                         }
                     }
                 }

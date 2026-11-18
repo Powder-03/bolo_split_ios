@@ -99,4 +99,18 @@ final class ActivityTabViewModel {
         errorMessage = nil
         hasLoadedOnce = false
     }
+
+    func deleteEntry(_ entry: ActivityFeedEntry) async {
+        do {
+            switch entry.kind {
+            case .expense(let expense):
+                try await ledgerService.deleteExpense(id: expense.id)
+            case .settlement(let settlement):
+                try await ledgerService.deleteSettlement(id: settlement.id)
+            }
+            entries.removeAll { $0.id == entry.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }

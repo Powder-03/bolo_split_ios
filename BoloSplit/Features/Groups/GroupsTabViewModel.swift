@@ -14,6 +14,7 @@ final class GroupsTabViewModel {
 
     var groups: [GroupRead] = []
     var isLoading = false
+    var isSubmitting = false
     var errorMessage: String?
     private var hasLoadedOnce = false
 
@@ -31,6 +32,38 @@ final class GroupsTabViewModel {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    func createGroup(name: String) async -> Result<GroupRead, Error> {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return .failure(APIError.httpError(statusCode: 400, message: "Please enter a group name."))
+        }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        do {
+            let group = try await ledgerService.createGroup(name: trimmed)
+            await loadGroups()
+            return .success(group)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    func joinGroup(inviteCode: String) async -> Result<GroupRead, Error> {
+        let trimmed = inviteCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return .failure(APIError.httpError(statusCode: 400, message: "Please enter an invite code."))
+        }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        do {
+            let group = try await ledgerService.joinGroup(inviteCode: trimmed)
+            await loadGroups()
+            return .success(group)
+        } catch {
+            return .failure(error)
+        }
     }
 
     func loadIfNeeded() async {

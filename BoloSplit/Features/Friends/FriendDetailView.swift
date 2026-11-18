@@ -48,16 +48,30 @@ struct FriendDetailView: View {
             } else {
                 Section("Shared Activity") {
                     ForEach(viewModel.timeline) { item in
-                        BilateralTimelineRow(item: item)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                if item.isSettlement {
+                        if item.isSettlement {
+                            BilateralTimelineRow(item: item)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         Task { await viewModel.undoSettlement(id: item.id) }
                                     } label: {
                                         Label("Undo", systemImage: "arrow.uturn.backward")
                                     }
                                 }
+                        } else {
+                            NavigationLink {
+                                ExpenseDetailView(
+                                    viewModel: environment.makeExpenseDetailViewModel(
+                                        expenseId: item.id,
+                                        knownUserNames: [viewModel.friend.id: viewModel.friend.name],
+                                        onChanged: {
+                                            await viewModel.loadFeed()
+                                        }
+                                    )
+                                )
+                            } label: {
+                                BilateralTimelineRow(item: item)
                             }
+                        }
                     }
                 }
             }

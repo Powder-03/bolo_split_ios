@@ -93,6 +93,52 @@ final class AppEnvironment {
         )
     }
 
+    func makeGroupDetailViewModel(group: GroupRead) -> GroupDetailViewModel {
+        GroupDetailViewModel(
+            group: group,
+            ledgerService: ledgerService,
+            onLedgerMutated: { [weak self] in
+                await self?.refreshAllFeeds()
+            }
+        )
+    }
+
+    func makeExpenseDetailViewModel(
+        expenseId: UUID,
+        initialExpense: ExpenseRead? = nil,
+        knownUserNames: [UUID: String] = [:],
+        onChanged: (() async -> Void)? = nil
+    ) -> ExpenseDetailViewModel {
+        ExpenseDetailViewModel(
+            expenseId: expenseId,
+            initialExpense: initialExpense,
+            knownUserNames: knownUserNames,
+            ledgerService: ledgerService,
+            onLedgerMutated: { [weak self] in
+                await onChanged?()
+                await self?.refreshAllFeeds()
+            }
+        )
+    }
+
+    func makeManualExpenseFormViewModel(
+        groupId: UUID? = nil,
+        groupName: String? = nil,
+        participants: [ExpenseParticipant],
+        onCreated: (() async -> Void)? = nil
+    ) -> ManualExpenseFormViewModel {
+        ManualExpenseFormViewModel(
+            groupId: groupId,
+            groupName: groupName,
+            participants: participants,
+            ledgerService: ledgerService,
+            onCreated: { [weak self] in
+                await onCreated?()
+                await self?.refreshAllFeeds()
+            }
+        )
+    }
+
     func openVoiceOverlay(groupId: UUID? = nil, groupName: String? = nil) {
         presentedVoiceViewModel = makeVoiceViewModel(groupId: groupId, groupName: groupName)
     }

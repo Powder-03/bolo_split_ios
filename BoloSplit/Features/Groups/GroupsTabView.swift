@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct GroupsTabView: View {
+    @Environment(AppEnvironment.self) private var environment
     @Bindable var viewModel: GroupsTabViewModel
+    @State private var showCreateOrJoin = false
 
     var body: some View {
         NavigationStack {
@@ -28,20 +30,37 @@ struct GroupsTabView: View {
                         EmptyStateView(
                             systemImage: "person.3.fill",
                             title: "No groups yet",
-                            subtitle: "Groups for trips, flatmates, and events will appear here."
+                            subtitle: "Tap + to create a group or join one with a 6-character invite code."
                         )
                     }
                     .listRowBackground(Color.clear)
                 } else {
                     Section("Your Groups") {
                         ForEach(viewModel.groups) { group in
-                            GroupRow(group: group)
+                            NavigationLink {
+                                GroupDetailView(
+                                    viewModel: environment.makeGroupDetailViewModel(group: group)
+                                )
+                            } label: {
+                                GroupRow(group: group)
+                            }
                         }
                     }
                 }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Groups")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showCreateOrJoin = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityLabel("Create or join group")
+                }
+            }
             .overlay {
                 if viewModel.isLoading && viewModel.groups.isEmpty {
                     ProgressView("Loading groups...")
@@ -52,6 +71,9 @@ struct GroupsTabView: View {
             }
             .task {
                 await viewModel.loadIfNeeded()
+            }
+            .sheet(isPresented: $showCreateOrJoin) {
+                CreateOrJoinGroupSheet(viewModel: viewModel)
             }
         }
     }
@@ -80,10 +102,6 @@ private struct GroupRow: View {
             }
 
             Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 4)
     }

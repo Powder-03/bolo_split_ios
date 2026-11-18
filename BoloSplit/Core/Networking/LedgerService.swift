@@ -13,7 +13,15 @@ protocol LedgerServiceProtocol {
     func createFriend(_ payload: FriendCreate) async throws -> FriendRead
     func fetchBilateralFeed(friendId: UUID, limit: Int, offset: Int) async throws -> BilateralActivityFeed
     func fetchGroups() async throws -> [GroupRead]
+    func createGroup(name: String) async throws -> GroupRead
+    func joinGroup(inviteCode: String) async throws -> GroupRead
+    func fetchGroupDetail(groupId: UUID) async throws -> GroupDetailRead
+    func addGroupMember(groupId: UUID, identifier: String, name: String?, role: String) async throws -> GroupMemberRead
+    func fetchGroupFeed(groupId: UUID, limit: Int, offset: Int) async throws -> GroupActivityFeed
     func fetchExpenses(groupId: UUID?, scope: String?, limit: Int, offset: Int) async throws -> [ExpenseRead]
+    func fetchExpenseDetail(id: UUID) async throws -> ExpenseRead
+    func createExpense(_ payload: ExpenseCreate) async throws -> ExpenseRead
+    func updateExpense(id: UUID, payload: ExpenseUpdate) async throws -> ExpenseRead
     func fetchSelfExpenses(limit: Int, offset: Int, category: String?, month: Int?, year: Int?) async throws -> SelfExpensesSummary
     func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> ExpenseRead
     func deleteExpense(id: UUID) async throws
@@ -58,6 +66,42 @@ final class LedgerService: LedgerServiceProtocol {
         try await apiClient.request(.get("/groups"))
     }
 
+    func createGroup(name: String) async throws -> GroupRead {
+        let endpoint = try Endpoint.post("/groups", body: GroupCreate(name: name))
+        return try await apiClient.request(endpoint)
+    }
+
+    func joinGroup(inviteCode: String) async throws -> GroupRead {
+        let cleanCode = inviteCode
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        let encodedCode = cleanCode.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? cleanCode
+        return try await apiClient.request(.postEmpty("/groups/join/\(encodedCode)"))
+    }
+
+    func fetchGroupDetail(groupId: UUID) async throws -> GroupDetailRead {
+        try await apiClient.request(.get("/groups/\(groupId.uuidString)"))
+    }
+
+    func addGroupMember(
+        groupId: UUID,
+        identifier: String,
+        name: String? = nil,
+        role: String = "member"
+    ) async throws -> GroupMemberRead {
+        let payload = GroupMemberAdd(identifier: identifier, name: name, role: role)
+        let endpoint = try Endpoint.post("/groups/\(groupId.uuidString)/members", body: payload)
+        return try await apiClient.request(endpoint)
+    }
+
+    func fetchGroupFeed(groupId: UUID, limit: Int = 50, offset: Int = 0) async throws -> GroupActivityFeed {
+        let query = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset)),
+        ]
+        return try await apiClient.request(.get("/groups/\(groupId.uuidString)/expenses", queryItems: query))
+    }
+
     func fetchExpenses(groupId: UUID? = nil, scope: String? = nil, limit: Int = 50, offset: Int = 0) async throws -> [ExpenseRead] {
         var query = [
             URLQueryItem(name: "limit", value: String(limit)),
@@ -70,6 +114,20 @@ final class LedgerService: LedgerServiceProtocol {
             query.append(URLQueryItem(name: "scope", value: scope))
         }
         return try await apiClient.request(.get("/expenses", queryItems: query))
+    }
+
+    func fetchExpenseDetail(id: UUID) async throws -> ExpenseRead {
+        try await apiClient.request(.get("/expenses/\(id.uuidString)"))
+    }
+
+    func createExpense(_ payload: ExpenseCreate) async throws -> ExpenseRead {
+        let endpoint = try Endpoint.post("/expenses", body: payload)
+        return try await apiClient.request(endpoint)
+    }
+
+    func updateExpense(id: UUID, payload: ExpenseUpdate) async throws -> ExpenseRead {
+        let endpoint = try Endpoint.patch("/expenses/\(id.uuidString)", body: payload)
+        return try await apiClient.request(endpoint)
     }
 
     func fetchSelfExpenses(
