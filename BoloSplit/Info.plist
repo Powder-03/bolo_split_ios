@@ -14,6 +14,16 @@
 				<string>com.googleusercontent.apps.675271305857-02l79oeujr97qvu7cjsgt3d68opve4r2</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>BoloSplit.DeepLink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>bolosplit</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

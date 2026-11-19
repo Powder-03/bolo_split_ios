@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct FriendDetailView: View {
     @Environment(AppEnvironment.self) private var environment
@@ -13,70 +14,80 @@ struct FriendDetailView: View {
     @State private var showSettleUp = false
 
     var body: some View {
-        List {
-            if let error = viewModel.errorMessage {
-                Section {
-                    ErrorBanner(message: error) {
-                        Task { await viewModel.loadFeed() }
-                    }
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-
-            Section {
-                FriendSummaryHeaderCard(
-                    friend: viewModel.friend,
-                    netBalance: viewModel.netBalance,
-                    summaryText: viewModel.feed?.summaryText
-                ) {
-                    showSettleUp = true
-                }
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-
-            if viewModel.timeline.isEmpty && !viewModel.isLoading {
-                Section {
-                    EmptyStateView(
-                        systemImage: "arrow.left.arrow.right.circle",
-                        title: "No shared history yet",
-                        subtitle: "Tap the Bolo mic button and say \"Add 500 dinner split with \(viewModel.friend.name)\" to start."
-                    )
-                }
-                .listRowBackground(Color.clear)
+        Group {
+            if viewModel.isLoading && viewModel.feed == nil {
+                SkeletonLoadingView(showBannerCard: true, rowCount: 5)
             } else {
-                Section("Shared Activity") {
-                    ForEach(viewModel.timeline) { item in
-                        if item.isSettlement {
-                            BilateralTimelineRow(item: item)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.undoSettlement(id: item.id) }
-                                    } label: {
-                                        Label("Undo", systemImage: "arrow.uturn.backward")
-                                    }
-                                }
-                        } else {
-                            NavigationLink {
-                                ExpenseDetailView(
-                                    viewModel: environment.makeExpenseDetailViewModel(
-                                        expenseId: item.id,
-                                        knownUserNames: [viewModel.friend.id: viewModel.friend.name],
-                                        onChanged: {
-                                            await viewModel.loadFeed()
+                List {
+                    if let error = viewModel.errorMessage {
+                        Section {
+                            ErrorBanner(message: error) {
+                                Task { await viewModel.loadFeed() }
+                            }
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                    }
+
+                    Section {
+                        FriendSummaryHeaderCard(
+                            friend: viewModel.friend,
+                            netBalance: viewModel.netBalance,
+                            summaryText: viewModel.feed?.summaryText
+                        ) {
+                            showSettleUp = true
+                        }
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+
+                    if viewModel.timeline.isEmpty && !viewModel.isLoading {
+                        Section {
+                            EmptyStateView(
+                                systemImage: "arrow.left.arrow.right.circle",
+                                title: "No shared history yet",
+                                subtitle: "Tap the Bolo mic button and say \"Add 500 dinner split with \(viewModel.friend.name)\" to start."
+                            )
+                        }
+                        .listRowBackground(Color.clear)
+                    } else {
+                        Section("Shared Activity") {
+                            ForEach(Array(viewModel.timeline.enumerated()), id: \.element.id) { index, item in
+                                if item.isSettlement {
+                                    BilateralTimelineRow(item: item)
+                                        .staggeredEntrance(index: index)
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                            Button(role: .destructive) {
+                                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                                Task { await viewModel.undoSettlement(id: item.id) }
+                                            } label: {
+                                                Label("Undo", systemImage: "arrow.uturn.backward")
+                                            }
                                         }
-                                    )
-                                )
-                            } label: {
-                                BilateralTimelineRow(item: item)
+                                } else {
+                                    NavigationLink {
+                                        ExpenseDetailView(
+                                            viewModel: environment.makeExpenseDetailViewModel(
+                                                expenseId: item.id,
+                                                knownUserNames: [viewModel.friend.id: viewModel.friend.name],
+                                                onChanged: {
+                                                    await viewModel.loadFeed()
+                                                }
+                                            )
+                                        )
+                                    } label: {
+                                        BilateralTimelineRow(item: item)
+                                    }
+                                    .staggeredEntrance(index: index)
+                                }
                             }
                         }
                     }
                 }
+                .listStyle(.insetGrouped)
+                .animation(AppMotion.snappy, value: viewModel.timeline)
             }
         }
-        .listStyle(.insetGrouped)
         .navigationTitle(viewModel.friend.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -85,11 +96,6 @@ struct FriendDetailView: View {
                     showSettleUp = true
                 }
                 .fontWeight(.semibold)
-            }
-        }
-        .overlay {
-            if viewModel.isLoading && viewModel.feed == nil {
-                ProgressView("Loading shared history...")
             }
         }
         .refreshable {
@@ -121,25 +127,27 @@ private struct FriendSummaryHeaderCard: View {
     let summaryText: String?
     let onSettleUp: () -> Void
 
+    private var netTint: Color {
+        AppTheme.balanceColor(for: netBalance)
+    }
+
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             HStack(spacing: 14) {
-                Circle()
-                    .fill(AppTheme.brand.opacity(0.16))
-                    .frame(width: 54, height: 54)
-                    .overlay {
-                        Text(String(friend.name.prefix(1)).uppercased())
-                            .font(.title2.bold())
-                            .foregroundStyle(AppTheme.brand)
-                    }
+                UserAvatarBadge(
+                    name: friend.name,
+                    size: 56,
+                    ringColor: netBalance == 0 ? AppTheme.brand : netTint
+                )
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(friend.name)
                         .font(.title3.bold())
 
                     Text(displaySummary)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(AppTheme.balanceColor(for: netBalance))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(netTint)
+                        .contentTransition(.numericText())
 
                     if !friend.aliases.isEmpty {
                         Text("Aliases: \(friend.aliases.prefix(3).joined(separator: ", "))")
@@ -159,13 +167,14 @@ private struct FriendSummaryHeaderCard: View {
                 .font(.headline)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.vertical, 13)
+                .background(AppTheme.brandGradient, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .shadow(color: AppTheme.brand.opacity(0.25), radius: 8, y: 4)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BoloPressButtonStyle(haptic: .medium))
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .tintedCardSurface(tint: netTint, cornerRadius: 16)
     }
 
     private var displaySummary: String {
@@ -188,9 +197,9 @@ private struct BilateralTimelineRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill((item.isSettlement ? AppTheme.owedPositive : AppTheme.brand).opacity(0.14))
-                .frame(width: 40, height: 40)
+                .frame(width: 42, height: 42)
                 .overlay {
                     Image(systemName: item.isSettlement ? "checkmark.seal.fill" : "receipt.fill")
                         .foregroundStyle(item.isSettlement ? AppTheme.owedPositive : AppTheme.brand)
@@ -215,12 +224,13 @@ private struct BilateralTimelineRow: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(impactLabel)
-                    .font(.caption2)
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(AppTheme.balanceColor(for: item.yourNetImpact))
 
                 Text(CurrencyFormatter.formatINR(abs(item.yourNetImpact)))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.balanceColor(for: item.yourNetImpact))
+                    .contentTransition(.numericText())
             }
         }
         .padding(.vertical, 4)

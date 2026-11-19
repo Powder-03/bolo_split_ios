@@ -2,10 +2,12 @@
 //  SelfTabView.swift
 //  BoloSplit
 //
-//  Personal / Solo expenses tab showing monthly total, category stats, and solo transactions.
+//  Personal / Solo expenses tab showing monthly total, category breakdown bar,
+//  gliding filter chips, and solo transactions.
 //
 
 import SwiftUI
+import UIKit
 
 struct SelfTabView: View {
     @Bindable var viewModel: SelfTabViewModel
@@ -13,65 +15,77 @@ struct SelfTabView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if let error = viewModel.errorMessage {
-                    Section {
-                        ErrorBanner(message: error) {
-                            Task { await viewModel.loadSelfExpenses() }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                }
-
-                if let summary = viewModel.summary {
-                    Section {
-                        SelfSummaryBannerCard(summary: summary)
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-
-                    if !summary.categories.isEmpty {
-                        Section {
-                            CategoryFilterStrip(
-                                categories: summary.categories,
-                                selectedCategory: viewModel.selectedCategory
-                            ) { category in
-                                Task { await viewModel.selectCategory(category) }
-                            }
-                        }
-                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                        .listRowBackground(Color.clear)
-                    }
-                }
-
-                if viewModel.expenses.isEmpty && !viewModel.isLoading {
-                    Section {
-                        EmptyStateView(
-                            systemImage: "person.fill",
-                            title: viewModel.selectedCategory == nil
-                                ? "No solo expenses yet"
-                                : "No expenses in \(viewModel.selectedCategory?.capitalized ?? "category")",
-                            subtitle: "Tap + or speak to Bolo without mentioning a friend or group (e.g. \"500 petrol\") to track personal spending."
-                        )
-                    }
-                    .listRowBackground(Color.clear)
+            Group {
+                if viewModel.isLoading && viewModel.summary == nil {
+                    SkeletonLoadingView(showBannerCard: true, rowCount: 5)
                 } else {
-                    Section(sectionTitle) {
-                        ForEach(viewModel.expenses) { expense in
-                            SelfExpenseRow(expense: expense)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.deleteExpense(expense) }
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                    List {
+                        if let error = viewModel.errorMessage {
+                            Section {
+                                ErrorBanner(message: error) {
+                                    Task { await viewModel.loadSelfExpenses() }
+                                }
+                            }
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                        }
+
+                        if let summary = viewModel.summary {
+                            Section {
+                                SelfSummaryBannerCard(summary: summary)
+                            }
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+
+                            if !summary.categories.isEmpty {
+                                Section {
+                                    CategoryFilterStrip(
+                                        categories: summary.categories,
+                                        selectedCategory: viewModel.selectedCategory
+                                    ) { category in
+                                        Task { await viewModel.selectCategory(category) }
                                     }
                                 }
+                                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                                .listRowBackground(Color.clear)
+                            }
+                        }
+
+                        if viewModel.expenses.isEmpty && !viewModel.isLoading {
+                            Section {
+                                EmptyStateView(
+                                    systemImage: "person.fill",
+                                    title: viewModel.selectedCategory == nil
+                                        ? "No solo expenses yet"
+                                        : "No expenses in \(viewModel.selectedCategory?.capitalized ?? "category")",
+                                    subtitle: "Tap + or speak to Bolo without mentioning a friend or group (e.g. \"500 petrol\") to track personal spending.",
+                                    actionTitle: viewModel.selectedCategory == nil ? "Add Solo Expense" : nil
+                                ) {
+                                    showAddSheet = true
+                                }
+                            }
+                            .listRowBackground(Color.clear)
+                        } else {
+                            Section(sectionTitle) {
+                                ForEach(Array(viewModel.expenses.enumerated()), id: \.element.id) { index, expense in
+                                    SelfExpenseRow(expense: expense)
+                                        .staggeredEntrance(index: index)
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                            Button(role: .destructive) {
+                                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                                Task { await viewModel.deleteExpense(expense) }
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                                }
+                            }
                         }
                     }
+                    .listStyle(.insetGrouped)
+                    .animation(AppMotion.snappy, value: viewModel.expenses)
                 }
             }
-            .listStyle(.insetGrouped)
             .navigationTitle("Self")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -82,11 +96,6 @@ struct SelfTabView: View {
                             .fontWeight(.semibold)
                     }
                     .accessibilityLabel("Add solo expense")
-                }
-            }
-            .overlay {
-                if viewModel.isLoading && viewModel.summary == nil {
-                    ProgressView("Loading personal expenses...")
                 }
             }
             .refreshable {
@@ -114,6 +123,12 @@ struct SelfTabView: View {
 private struct SelfSummaryBannerCard: View {
     let summary: SelfExpensesSummary
 
+    private var totalCategorySum: Double {
+        summary.categories.reduce(0) { partial, stat in
+            partial + max(0, NSDecimalNumber(decimal: stat.totalAmount).doubleValue)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
@@ -124,6 +139,7 @@ private struct SelfSummaryBannerCard: View {
                     Text(CurrencyFormatter.formatINR(summary.thisMonthSpending))
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(AppTheme.brand)
+                        .contentTransition(.numericText())
                 }
 
                 Spacer()
@@ -134,7 +150,26 @@ private struct SelfSummaryBannerCard: View {
                         .foregroundStyle(.secondary)
                     Text("\(summary.totalCount)")
                         .font(.title3.weight(.bold))
+                        .contentTransition(.numericText())
                 }
+            }
+
+            if totalCategorySum > 0 && !summary.categories.isEmpty {
+                GeometryReader { geo in
+                    HStack(spacing: 2) {
+                        ForEach(summary.categories.prefix(5)) { stat in
+                            let val = max(0, NSDecimalNumber(decimal: stat.totalAmount).doubleValue)
+                            let fraction = val / totalCategorySum
+                            if fraction > 0.01 {
+                                Capsule()
+                                    .fill(AppTheme.categoryColor(for: stat.category).gradient)
+                                    .frame(width: max(6, geo.size.width * fraction - 2))
+                            }
+                        }
+                    }
+                }
+                .frame(height: 6)
+                .animation(AppMotion.gentle, value: summary.categories)
             }
 
             Divider()
@@ -146,6 +181,7 @@ private struct SelfSummaryBannerCard: View {
                 Spacer()
                 Text(CurrencyFormatter.formatINR(summary.totalSpending))
                     .font(.subheadline.weight(.semibold))
+                    .contentTransition(.numericText())
             }
 
             Text("Personal expenses don't affect friend or group balances.")
@@ -153,7 +189,7 @@ private struct SelfSummaryBannerCard: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .tintedCardSurface(tint: AppTheme.brand, cornerRadius: 16)
     }
 }
 
@@ -163,6 +199,7 @@ private struct CategoryFilterStrip: View {
     let categories: [SelfCategoryStat]
     let selectedCategory: String?
     let onSelect: (String?) -> Void
+    @Namespace private var chipNamespace
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -174,13 +211,19 @@ private struct CategoryFilterStrip: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(
-                            selectedCategory == nil ? AppTheme.brand : Color(.secondarySystemGroupedBackground),
-                            in: Capsule()
-                        )
                         .foregroundStyle(selectedCategory == nil ? .white : .primary)
+                        .background {
+                            if selectedCategory == nil {
+                                Capsule()
+                                    .fill(AppTheme.brandGradient)
+                                    .matchedGeometryEffect(id: "selfCategoryPill", in: chipNamespace)
+                            } else {
+                                Capsule()
+                                    .fill(Color(.secondarySystemGroupedBackground))
+                            }
+                        }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(BoloPressButtonStyle(scale: 0.95))
 
                 ForEach(categories) { stat in
                     let isSelected = selectedCategory == stat.category.lowercased()
@@ -190,6 +233,7 @@ private struct CategoryFilterStrip: View {
                         HStack(spacing: 6) {
                             Image(systemName: AppTheme.categoryIcon(for: stat.category))
                                 .font(.caption2)
+                                .foregroundStyle(isSelected ? .white : AppTheme.categoryColor(for: stat.category))
                             Text(stat.category.capitalized)
                                 .font(.caption.weight(.semibold))
                             Text(CurrencyFormatter.formatINR(stat.totalAmount))
@@ -198,17 +242,25 @@ private struct CategoryFilterStrip: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(
-                            isSelected ? AppTheme.brand : Color(.secondarySystemGroupedBackground),
-                            in: Capsule()
-                        )
                         .foregroundStyle(isSelected ? .white : .primary)
+                        .background {
+                            if isSelected {
+                                Capsule()
+                                    .fill(AppTheme.brandGradient)
+                                    .matchedGeometryEffect(id: "selfCategoryPill", in: chipNamespace)
+                            } else {
+                                Capsule()
+                                    .fill(Color(.secondarySystemGroupedBackground))
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(BoloPressButtonStyle(scale: 0.95))
                 }
             }
             .padding(.horizontal, 2)
+            .animation(AppMotion.snappy, value: selectedCategory)
         }
+        .sensoryFeedback(.selection, trigger: selectedCategory)
     }
 }
 
@@ -217,14 +269,18 @@ private struct CategoryFilterStrip: View {
 private struct SelfExpenseRow: View {
     let expense: ExpenseRead
 
+    private var catColor: Color {
+        AppTheme.categoryColor(for: expense.category)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(AppTheme.brand.opacity(0.14))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(catColor.opacity(0.14))
                 .frame(width: 42, height: 42)
                 .overlay {
                     Image(systemName: AppTheme.categoryIcon(for: expense.category))
-                        .foregroundStyle(AppTheme.brand)
+                        .foregroundStyle(catColor)
                 }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -235,10 +291,10 @@ private struct SelfExpenseRow: View {
                 HStack(spacing: 6) {
                     Text((expense.category ?? "general").capitalized)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(AppTheme.brand)
+                        .foregroundStyle(catColor)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(AppTheme.brand.opacity(0.1), in: Capsule())
+                        .background(catColor.opacity(0.12), in: Capsule())
 
                     Text(expense.expenseDate.formatted(date: .abbreviated, time: .shortened))
                         .font(.caption2)
@@ -250,6 +306,7 @@ private struct SelfExpenseRow: View {
 
             Text(CurrencyFormatter.formatINR(expense.amount))
                 .font(.subheadline.weight(.semibold))
+                .contentTransition(.numericText())
         }
         .padding(.vertical, 4)
     }
@@ -324,7 +381,10 @@ private struct AddSelfExpenseSheet: View {
                                 category: category,
                                 date: date
                             )
-                            if ok { dismiss() }
+                            if ok {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(!isValid || viewModel.isSubmitting)

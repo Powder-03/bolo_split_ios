@@ -24,6 +24,7 @@ final class AppEnvironment {
     let activityViewModel: ActivityTabViewModel
 
     var presentedVoiceViewModel: VoiceViewModel?
+    var pendingVoiceDeepLink = false
 
     init() {
         let auth = AuthService()
@@ -146,6 +147,25 @@ final class AppEnvironment {
     func dismissVoiceOverlay() {
         presentedVoiceViewModel?.cancelAndCleanup()
         presentedVoiceViewModel = nil
+    }
+
+    func handleDeepLink(_ url: URL) {
+        guard url.scheme?.lowercased() == "bolosplit" else { return }
+        let target = (url.host ?? url.path).lowercased()
+        if target.contains("voice") {
+            if authViewModel.isAuthenticated {
+                pendingVoiceDeepLink = false
+                openVoiceOverlay()
+            } else {
+                pendingVoiceDeepLink = true
+            }
+        }
+    }
+
+    func consumePendingDeepLinkIfNeeded() {
+        guard pendingVoiceDeepLink, authViewModel.isAuthenticated else { return }
+        pendingVoiceDeepLink = false
+        openVoiceOverlay()
     }
 
     func refreshAllFeeds() async {

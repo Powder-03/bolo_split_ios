@@ -74,6 +74,7 @@ struct CreateOrJoinGroupSheet: View {
                     }
                 }
             }
+            .animation(AppMotion.snappy, value: mode)
             .navigationTitle(mode.rawValue)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

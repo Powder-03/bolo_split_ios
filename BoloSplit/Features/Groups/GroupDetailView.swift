@@ -2,8 +2,8 @@
 //  GroupDetailView.swift
 //  BoloSplit
 //
-//  Group dashboard with copyable invite code, members roster, group balances,
-//  contextual Bolo mic + manual expense CTA, and chronological group timeline.
+//  Group dashboard with animated invite code copy pill, members roster,
+//  group balances, contextual Bolo mic + manual expense CTA, and chronological timeline.
 //
 
 import SwiftUI
@@ -34,168 +34,186 @@ struct GroupDetailView: View {
     }
 
     var body: some View {
-        List {
-            if let error = viewModel.errorMessage {
-                Section {
-                    ErrorBanner(message: error) {
-                        Task { await viewModel.loadGroupData() }
-                    }
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-
-            Section {
-                GroupHeaderSummaryCard(
-                    groupName: viewModel.group.name,
-                    inviteCode: viewModel.inviteCode,
-                    totalSpending: viewModel.totalSpending,
-                    memberCount: viewModel.members.count,
-                    copiedInvite: copiedInvite,
-                    onCopyInvite: {
-                        UIPasteboard.general.string = viewModel.inviteCode
-                        copiedInvite = true
-                        Task {
-                            try? await Task.sleep(for: .seconds(2))
-                            copiedInvite = false
+        Group {
+            if viewModel.isLoading && viewModel.detail == nil {
+                SkeletonLoadingView(showBannerCard: true, rowCount: 5)
+            } else {
+                List {
+                    if let error = viewModel.errorMessage {
+                        Section {
+                            ErrorBanner(message: error) {
+                                Task { await viewModel.loadGroupData() }
+                            }
                         }
-                    },
-                    onAddExpense: { showAddExpense = true },
-                    onSpeakInGroup: {
-                        environment.openVoiceOverlay(
-                            groupId: viewModel.group.id,
-                            groupName: viewModel.group.name
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                    }
+
+                    Section {
+                        GroupHeaderSummaryCard(
+                            groupName: viewModel.group.name,
+                            inviteCode: viewModel.inviteCode,
+                            totalSpending: viewModel.totalSpending,
+                            memberCount: viewModel.members.count,
+                            copiedInvite: copiedInvite,
+                            onCopyInvite: {
+                                UIPasteboard.general.string = viewModel.inviteCode
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                withAnimation(AppMotion.snappy) {
+                                    copiedInvite = true
+                                }
+                                Task {
+                                    try? await Task.sleep(for: .seconds(2))
+                                    withAnimation(AppMotion.snappy) {
+                                        copiedInvite = false
+                                    }
+                                }
+                            },
+                            onAddExpense: { showAddExpense = true },
+                            onSpeakInGroup: {
+                                environment.openVoiceOverlay(
+                                    groupId: viewModel.group.id,
+                                    groupName: viewModel.group.name
+                                )
+                            }
                         )
                     }
-                )
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
 
-            // Members Roster
-            Section {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(viewModel.members) { member in
-                            VStack(spacing: 4) {
-                                Circle()
-                                    .fill(AppTheme.brand.opacity(0.15))
-                                    .frame(width: 42, height: 42)
-                                    .overlay {
-                                        Text(String(member.name.prefix(1)).uppercased())
-                                            .font(.subheadline.bold())
-                                            .foregroundStyle(AppTheme.brand)
+                    // Members Roster
+                    Section {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(Array(viewModel.members.enumerated()), id: \.element.id) { index, member in
+                                    VStack(spacing: 5) {
+                                        UserAvatarBadge(name: member.name, size: 44)
+
+                                        Text(member.name)
+                                            .font(.caption2.weight(.medium))
+                                            .lineLimit(1)
+                                            .frame(maxWidth: 64)
                                     }
-
-                                Text(member.name)
-                                    .font(.caption2.weight(.medium))
-                                    .lineLimit(1)
-                                    .frame(maxWidth: 64)
-                            }
-                        }
-
-                        Button {
-                            showAddMember = true
-                        } label: {
-                            VStack(spacing: 4) {
-                                Circle()
-                                    .strokeBorder(AppTheme.brand, style: StrokeStyle(lineWidth: 1.5, dash: [4]))
-                                    .frame(width: 42, height: 42)
-                                    .overlay {
-                                        Image(systemName: "plus")
-                                            .foregroundStyle(AppTheme.brand)
-                                    }
-                                Text("Add")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(AppTheme.brand)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.vertical, 4)
-                }
-            } header: {
-                HStack {
-                    Text("Members (\(viewModel.members.count))")
-                    Spacer()
-                }
-            }
-
-            // Group Net Balances
-            if let balances = viewModel.groupBalances?.balances, !balances.isEmpty {
-                Section("Group Balances") {
-                    ForEach(balances) { bal in
-                        HStack {
-                            Text(bal.userName)
-                                .font(.subheadline.weight(.medium))
-                            Spacer()
-                            if bal.netBalance > 0 {
-                                Text("owes you \(CurrencyFormatter.formatINR(bal.netBalance))")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.owedPositive)
-                            } else if bal.netBalance < 0 {
-                                Text("you owe \(CurrencyFormatter.formatINR(abs(bal.netBalance)))")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.owedNegative)
-                            } else {
-                                Text("settled up")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Group Activity Timeline
-            if viewModel.timeline.isEmpty && !viewModel.isLoading {
-                Section {
-                    EmptyStateView(
-                        systemImage: "list.bullet.rectangle.portrait",
-                        title: "No group expenses yet",
-                        subtitle: "Tap Speak to Bolo or Add Expense to split bills with \(viewModel.group.name)."
-                    )
-                }
-                .listRowBackground(Color.clear)
-            } else {
-                Section("Group Timeline") {
-                    ForEach(viewModel.timeline) { item in
-                        if item.isSettlement {
-                            GroupTimelineRow(item: item)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.undoSettlement(id: item.id) }
-                                    } label: {
-                                        Label("Undo", systemImage: "arrow.uturn.backward")
-                                    }
+                                    .staggeredEntrance(index: index)
                                 }
-                        } else {
-                            NavigationLink {
-                                ExpenseDetailView(
-                                    viewModel: environment.makeExpenseDetailViewModel(
-                                        expenseId: item.id,
-                                        knownUserNames: knownNamesMap,
-                                        onChanged: {
-                                            await viewModel.loadGroupData()
-                                        }
-                                    )
-                                )
-                            } label: {
-                                GroupTimelineRow(item: item)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    Task { await viewModel.deleteExpense(id: item.id) }
+
+                                Button {
+                                    showAddMember = true
                                 } label: {
-                                    Label("Delete", systemImage: "trash")
+                                    VStack(spacing: 5) {
+                                        Circle()
+                                            .strokeBorder(AppTheme.brand, style: StrokeStyle(lineWidth: 1.5, dash: [4]))
+                                            .frame(width: 44, height: 44)
+                                            .overlay {
+                                                Image(systemName: "plus")
+                                                    .foregroundStyle(AppTheme.brand)
+                                            }
+                                        Text("Add")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(AppTheme.brand)
+                                    }
+                                }
+                                .buttonStyle(BoloPressButtonStyle(scale: 0.92, haptic: .light))
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    } header: {
+                        HStack {
+                            Text("Members (\(viewModel.members.count))")
+                            Spacer()
+                        }
+                    }
+
+                    // Group Net Balances
+                    if let balances = viewModel.groupBalances?.balances, !balances.isEmpty {
+                        Section("Group Balances") {
+                            ForEach(balances) { bal in
+                                HStack(spacing: 10) {
+                                    UserAvatarBadge(
+                                        name: bal.userName,
+                                        size: 32,
+                                        ringColor: bal.netBalance == 0 ? nil : AppTheme.balanceColor(for: bal.netBalance)
+                                    )
+
+                                    Text(bal.userName)
+                                        .font(.subheadline.weight(.medium))
+                                    Spacer()
+                                    if bal.netBalance > 0 {
+                                        Text("owes you \(CurrencyFormatter.formatINR(bal.netBalance))")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(AppTheme.owedPositive)
+                                            .contentTransition(.numericText())
+                                    } else if bal.netBalance < 0 {
+                                        Text("you owe \(CurrencyFormatter.formatINR(abs(bal.netBalance)))")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(AppTheme.owedNegative)
+                                            .contentTransition(.numericText())
+                                    } else {
+                                        Text("settled up")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Group Activity Timeline
+                    if viewModel.timeline.isEmpty && !viewModel.isLoading {
+                        Section {
+                            EmptyStateView(
+                                systemImage: "list.bullet.rectangle.portrait",
+                                title: "No group expenses yet",
+                                subtitle: "Tap Bolo in Group or Add Manual to split bills with \(viewModel.group.name)."
+                            )
+                        }
+                        .listRowBackground(Color.clear)
+                    } else {
+                        Section("Group Timeline") {
+                            ForEach(Array(viewModel.timeline.enumerated()), id: \.element.id) { index, item in
+                                if item.isSettlement {
+                                    GroupTimelineRow(item: item)
+                                        .staggeredEntrance(index: index)
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                            Button(role: .destructive) {
+                                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                                Task { await viewModel.undoSettlement(id: item.id) }
+                                            } label: {
+                                                Label("Undo", systemImage: "arrow.uturn.backward")
+                                            }
+                                        }
+                                } else {
+                                    NavigationLink {
+                                        ExpenseDetailView(
+                                            viewModel: environment.makeExpenseDetailViewModel(
+                                                expenseId: item.id,
+                                                knownUserNames: knownNamesMap,
+                                                onChanged: {
+                                                    await viewModel.loadGroupData()
+                                                }
+                                            )
+                                        )
+                                    } label: {
+                                        GroupTimelineRow(item: item)
+                                    }
+                                    .staggeredEntrance(index: index)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                        Button(role: .destructive) {
+                                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                            Task { await viewModel.deleteExpense(id: item.id) }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                .listStyle(.insetGrouped)
+                .animation(AppMotion.snappy, value: viewModel.timeline)
             }
         }
-        .listStyle(.insetGrouped)
         .navigationTitle(viewModel.group.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -208,11 +226,6 @@ struct GroupDetailView: View {
                 }
                 .disabled(groupParticipants.isEmpty)
                 .accessibilityLabel("Add group expense")
-            }
-        }
-        .overlay {
-            if viewModel.isLoading && viewModel.detail == nil {
-                ProgressView("Loading group...")
             }
         }
         .refreshable {
@@ -260,6 +273,7 @@ private struct GroupHeaderSummaryCard: View {
                         .foregroundStyle(.secondary)
                     Text(CurrencyFormatter.formatINR(totalSpending))
                         .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .contentTransition(.numericText())
                 }
 
                 Spacer()
@@ -270,13 +284,17 @@ private struct GroupHeaderSummaryCard: View {
                             .font(.caption.monospaced().weight(.bold))
                         Image(systemName: copiedInvite ? "checkmark" : "doc.on.doc")
                             .font(.caption2)
+                            .contentTransition(.symbolEffect(.replace))
                     }
-                    .foregroundStyle(AppTheme.brand)
-                    .padding(.horizontal, 10)
+                    .foregroundStyle(copiedInvite ? AppTheme.owedPositive : AppTheme.brand)
+                    .padding(.horizontal, 11)
                     .padding(.vertical, 6)
-                    .background(AppTheme.brand.opacity(0.12), in: Capsule())
+                    .background(
+                        (copiedInvite ? AppTheme.owedPositive : AppTheme.brand).opacity(0.13),
+                        in: Capsule()
+                    )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(BoloPressButtonStyle(scale: 0.94))
             }
 
             HStack(spacing: 10) {
@@ -285,25 +303,26 @@ private struct GroupHeaderSummaryCard: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .padding(.vertical, 12)
+                        .background(AppTheme.brandGradient, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .shadow(color: AppTheme.brand.opacity(0.25), radius: 6, y: 3)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(BoloPressButtonStyle(haptic: .medium))
 
                 Button(action: onAddExpense) {
                     Label("Add Manual", systemImage: "plus.circle.fill")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.brand)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
+                        .padding(.vertical, 12)
                         .background(AppTheme.brand.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(BoloPressButtonStyle(haptic: .light))
                 .disabled(memberCount == 0)
             }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .tintedCardSurface(tint: AppTheme.brand, cornerRadius: 16)
     }
 }
 
@@ -312,9 +331,9 @@ private struct GroupTimelineRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill((item.isSettlement ? AppTheme.owedPositive : AppTheme.brand).opacity(0.14))
-                .frame(width: 40, height: 40)
+                .frame(width: 42, height: 42)
                 .overlay {
                     Image(systemName: item.isSettlement ? "checkmark.seal.fill" : "receipt.fill")
                         .foregroundStyle(item.isSettlement ? AppTheme.owedPositive : AppTheme.brand)
@@ -340,11 +359,12 @@ private struct GroupTimelineRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 if item.yourNetImpact != 0 {
                     Text(item.yourNetImpact > 0 ? "you lent" : "you owe")
-                        .font(.caption2)
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(AppTheme.balanceColor(for: item.yourNetImpact))
                     Text(CurrencyFormatter.formatINR(abs(item.yourNetImpact)))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.balanceColor(for: item.yourNetImpact))
+                        .contentTransition(.numericText())
                 } else {
                     Text(CurrencyFormatter.formatINR(item.totalAmount))
                         .font(.subheadline.weight(.medium))
@@ -420,6 +440,7 @@ private struct AddGroupMemberSheet: View {
         let result = await viewModel.addMember(identifier: identifier, name: name)
         switch result {
         case .success:
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
         case .failure(let error):
             localError = error.localizedDescription

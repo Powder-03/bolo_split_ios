@@ -23,21 +23,25 @@ struct SettleUpSheet: View {
                 }
 
                 Section {
-                    HStack(spacing: 12) {
-                        Label("You", systemImage: "person.circle.fill")
-                            .font(.subheadline.weight(.semibold))
+                    HStack(spacing: 14) {
+                        HStack(spacing: 8) {
+                            UserAvatarBadge(name: "You", size: 34)
+                            Text("You")
+                                .font(.subheadline.weight(.semibold))
+                        }
+
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.subheadline)
                             .foregroundStyle(AppTheme.brand)
 
-                        Image(systemName: "arrow.right")
-                            .font(.caption.bold())
-                            .foregroundStyle(.secondary)
-
-                        Label(viewModel.friendName, systemImage: "person.circle.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.owedPositive)
+                        HStack(spacing: 8) {
+                            UserAvatarBadge(name: viewModel.friendName, size: 34, ringColor: AppTheme.owedPositive)
+                            Text(viewModel.friendName)
+                                .font(.subheadline.weight(.semibold))
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 6)
 
                     HStack {
                         Text("₹")

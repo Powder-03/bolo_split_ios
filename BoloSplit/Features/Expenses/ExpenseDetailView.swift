@@ -2,10 +2,11 @@
 //  ExpenseDetailView.swift
 //  BoloSplit
 //
-//  Detailed expense view displaying split breakdown, Edit sheet (PATCH), and Delete action.
+//  Detailed expense view displaying split breakdown with share bars, Edit sheet (PATCH), and Delete action.
 //
 
 import SwiftUI
+import UIKit
 
 struct ExpenseDetailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -15,74 +16,97 @@ struct ExpenseDetailView: View {
     @State private var showDeleteConfirm = false
 
     var body: some View {
-        List {
-            if let error = viewModel.errorMessage {
-                Section {
-                    ErrorBanner(message: error) {
-                        Task { await viewModel.loadDetail() }
-                    }
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-
-            if let expense = viewModel.expense {
-                Section {
-                    ExpenseDetailHeaderCard(expense: expense)
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-
-                Section("Split Breakdown") {
-                    if expense.splits.isEmpty {
-                        Text("No individual splits recorded.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(expense.splits) { split in
-                            HStack(spacing: 12) {
-                                Circle()
-                                    .fill(AppTheme.brand.opacity(0.14))
-                                    .frame(width: 34, height: 34)
-                                    .overlay {
-                                        Text(String(viewModel.displayName(for: split.userId).prefix(1)).uppercased())
-                                            .font(.subheadline.bold())
-                                            .foregroundStyle(AppTheme.brand)
-                                    }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(viewModel.displayName(for: split.userId))
-                                        .font(.body.weight(.medium))
-                                    Text(split.splitType.capitalized)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                Text(CurrencyFormatter.formatINR(split.owedAmount))
-                                    .font(.subheadline.weight(.semibold))
+        Group {
+            if viewModel.isLoading && viewModel.expense == nil {
+                SkeletonLoadingView(showBannerCard: true, rowCount: 3)
+            } else {
+                List {
+                    if let error = viewModel.errorMessage {
+                        Section {
+                            ErrorBanner(message: error) {
+                                Task { await viewModel.loadDetail() }
                             }
-                            .padding(.vertical, 2)
                         }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                     }
-                }
 
-                Section {
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Label("Delete Expense", systemImage: "trash")
-                                .fontWeight(.semibold)
-                            Spacer()
+                    if let expense = viewModel.expense {
+                        Section {
+                            ExpenseDetailHeaderCard(expense: expense)
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+
+                        Section("Split Breakdown") {
+                            if expense.splits.isEmpty {
+                                Text("No individual splits recorded.")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(Array(expense.splits.enumerated()), id: \.element.id) { index, split in
+                                    let name = viewModel.displayName(for: split.userId)
+                                    let ratio = shareRatio(owed: split.owedAmount, total: expense.amount)
+                                    VStack(spacing: 8) {
+                                        HStack(spacing: 12) {
+                                            UserAvatarBadge(name: name, size: 36)
+
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(name)
+                                                    .font(.body.weight(.medium))
+                                                Text(split.splitType.capitalized)
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+
+                                            Spacer()
+
+                                            VStack(alignment: .trailing, spacing: 2) {
+                                                Text(CurrencyFormatter.formatINR(split.owedAmount))
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .contentTransition(.numericText())
+                                                Text("\(Int((ratio * 100).rounded()))%")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+
+                                        GeometryReader { geo in
+                                            ZStack(alignment: .leading) {
+                                                Capsule()
+                                                    .fill(Color.secondary.opacity(0.12))
+                                                Capsule()
+                                                    .fill(AppTheme.avatarColor(for: name).gradient)
+                                                    .frame(width: max(6, geo.size.width * ratio))
+                                            }
+                                        }
+                                        .frame(height: 4)
+                                        .animation(AppMotion.gentle, value: ratio)
+                                    }
+                                    .padding(.vertical, 3)
+                                    .staggeredEntrance(index: index)
+                                }
+                            }
+                        }
+
+                        Section {
+                            Button(role: .destructive) {
+                                showDeleteConfirm = true
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Label("Delete Expense", systemImage: "trash")
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                            }
+                            .disabled(viewModel.isDeleting)
                         }
                     }
-                    .disabled(viewModel.isDeleting)
                 }
+                .listStyle(.insetGrouped)
+                .animation(AppMotion.snappy, value: viewModel.expense)
             }
         }
-        .listStyle(.insetGrouped)
         .navigationTitle("Expense Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -92,11 +116,6 @@ struct ExpenseDetailView: View {
                         showEditSheet = true
                     }
                 }
-            }
-        }
-        .overlay {
-            if viewModel.isLoading && viewModel.expense == nil {
-                ProgressView("Loading expense...")
             }
         }
         .refreshable {
@@ -116,6 +135,7 @@ struct ExpenseDetailView: View {
             titleVisibility: .visible
         ) {
             Button("Delete Expense", role: .destructive) {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 Task {
                     let deleted = await viewModel.deleteExpense()
                     if deleted { dismiss() }
@@ -126,21 +146,32 @@ struct ExpenseDetailView: View {
             Text("This will remove the expense and recalculate all affected balances.")
         }
     }
+
+    private func shareRatio(owed: Decimal, total: Decimal) -> Double {
+        let totalDouble = NSDecimalNumber(decimal: total).doubleValue
+        let owedDouble = NSDecimalNumber(decimal: owed).doubleValue
+        guard totalDouble > 0 else { return 0 }
+        return min(max(owedDouble / totalDouble, 0), 1)
+    }
 }
 
 private struct ExpenseDetailHeaderCard: View {
     let expense: ExpenseRead
 
+    private var catColor: Color {
+        AppTheme.categoryColor(for: expense.category)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(AppTheme.brand.opacity(0.15))
-                    .frame(width: 50, height: 50)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(catColor.opacity(0.15))
+                    .frame(width: 52, height: 52)
                     .overlay {
                         Image(systemName: AppTheme.categoryIcon(for: expense.category))
                             .font(.title2)
-                            .foregroundStyle(AppTheme.brand)
+                            .foregroundStyle(catColor)
                     }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -148,10 +179,10 @@ private struct ExpenseDetailHeaderCard: View {
                         .font(.title3.bold())
                     Text((expense.category ?? "general").capitalized)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.brand)
+                        .foregroundStyle(catColor)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(AppTheme.brand.opacity(0.12), in: Capsule())
+                        .background(catColor.opacity(0.12), in: Capsule())
                 }
 
                 Spacer()
@@ -166,6 +197,7 @@ private struct ExpenseDetailHeaderCard: View {
                         .foregroundStyle(.secondary)
                     Text(CurrencyFormatter.formatINR(expense.amount))
                         .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .contentTransition(.numericText())
                 }
 
                 Spacer()
@@ -180,7 +212,7 @@ private struct ExpenseDetailHeaderCard: View {
             }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .tintedCardSurface(tint: catColor, cornerRadius: 16)
     }
 }
 

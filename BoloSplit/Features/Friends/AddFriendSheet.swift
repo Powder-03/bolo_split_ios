@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct AddFriendSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -68,6 +69,7 @@ struct AddFriendSheet: View {
             }
             .navigationTitle("Add Friend")
             .navigationBarTitleDisplayMode(.inline)
+            .animation(AppMotion.snappy, value: localError)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -100,6 +102,7 @@ struct AddFriendSheet: View {
         )
         switch result {
         case .success:
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
         case .failure(let error):
             localError = error.localizedDescription

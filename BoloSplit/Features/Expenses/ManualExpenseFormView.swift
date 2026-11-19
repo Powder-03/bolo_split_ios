@@ -280,11 +280,14 @@ struct ManualExpenseFormSheet: View {
                         ForEach(viewModel.availableParticipants) { person in
                             let isSelected = viewModel.selectedParticipantIDs.contains(person.id)
                             Button {
-                                viewModel.toggleParticipant(person.id)
+                                withAnimation(AppMotion.snappy) {
+                                    viewModel.toggleParticipant(person.id)
+                                }
                             } label: {
                                 HStack {
                                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                         .foregroundStyle(isSelected ? AppTheme.brand : .secondary)
+                                        .contentTransition(.symbolEffect(.replace))
                                     Text(person.isCurrentUser ? "\(person.name) (You)" : person.name)
                                         .foregroundStyle(.primary)
                                     Spacer()
@@ -293,6 +296,7 @@ struct ManualExpenseFormSheet: View {
                                         Text(CurrencyFormatter.formatINR(share))
                                             .font(.caption.weight(.semibold))
                                             .foregroundStyle(.secondary)
+                                            .contentTransition(.numericText())
                                     }
                                 }
                             }
@@ -301,6 +305,7 @@ struct ManualExpenseFormSheet: View {
                     } header: {
                         Text("Split Between (\(viewModel.selectedParticipantIDs.count))")
                     }
+                    .transition(.opacity)
                 } else {
                     Section {
                         ForEach(viewModel.availableParticipants) { person in
@@ -325,10 +330,15 @@ struct ManualExpenseFormSheet: View {
                         } else {
                             Text("Remaining to allocate: \(CurrencyFormatter.formatINR(rem))")
                                 .foregroundStyle(rem == 0 ? Color.secondary : AppTheme.owedNegative)
+                                .contentTransition(.numericText())
                         }
                     }
+                    .transition(.opacity)
                 }
             }
+            .animation(AppMotion.snappy, value: viewModel.splitMode)
+            .sensoryFeedback(.selection, trigger: viewModel.splitMode)
+            .sensoryFeedback(.selection, trigger: viewModel.selectedParticipantIDs)
             .navigationTitle("Add Expense")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

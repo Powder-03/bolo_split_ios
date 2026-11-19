@@ -2,7 +2,7 @@
 //  BoloSplitApp.swift
 //  BoloSplit
 //
-//  App entry point: configures Firebase, Google Sign-In URL handling, and root environment.
+//  App entry point: configures Firebase, Google Sign-In URL handling, deep links, and root environment.
 //
 
 import FirebaseCore
@@ -25,7 +25,11 @@ struct BoloSplitApp: App {
             ContentView()
                 .environment(environment)
                 .onOpenURL { url in
-                    GIDSignIn.sharedInstance.handle(url)
+                    if url.scheme?.lowercased() == "bolosplit" {
+                        environment.handleDeepLink(url)
+                    } else {
+                        GIDSignIn.sharedInstance.handle(url)
+                    }
                 }
         }
     }
