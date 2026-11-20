@@ -26,3 +26,5 @@ DerivedData/
 ## Firebase & Secrets
 GoogleService-Info*.plist
 *GoogleService-Info*.plist
+*-firebase-adminsdk-*.json
+*.service-account.json

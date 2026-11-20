@@ -44,12 +44,7 @@ struct AccountTabView: View {
                     }
                 }
 
-                Section("Backend") {
-                    LabeledContent("Server") {
-                        Text(AppConfig.baseURL.host ?? AppConfig.baseURL.absoluteString)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                Section {
                     LabeledContent("Currency") {
                         Text("INR (₹)")
                             .foregroundStyle(.secondary)
