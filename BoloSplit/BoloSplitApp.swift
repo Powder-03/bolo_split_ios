@@ -14,8 +14,12 @@ struct BoloSplitApp: App {
     @State private var environment: AppEnvironment
 
     init() {
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
+        if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
+            if FirebaseApp.app() == nil {
+                FirebaseApp.configure()
+            }
+        } else {
+            print("[BoloSplit] Warning: GoogleService-Info.plist not found in app bundle. Firebase not initialized. Developer Quick Sign-In is enabled for testing.")
         }
         _environment = State(initialValue: AppEnvironment())
     }
