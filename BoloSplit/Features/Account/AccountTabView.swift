@@ -8,9 +8,17 @@
 import SwiftUI
 
 struct AccountTabView: View {
+    @Environment(AppEnvironment.self) private var environment
     @Bindable var authViewModel: AuthViewModel
     let onSignOut: () -> Void
     @State private var showSignOutConfirm = false
+
+    private var customizedAliasCount: Int {
+        environment.friendsViewModel.friends.filter { friend in
+            let hasNick = !(friend.nickname?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+            return hasNick || !friend.aliases.isEmpty
+        }.count
+    }
 
     var body: some View {
         NavigationStack {
@@ -42,6 +50,41 @@ struct AccountTabView: View {
                         }
                         .padding(.vertical, 6)
                     }
+                }
+
+                Section {
+                    NavigationLink {
+                        FriendAliasesView(viewModel: environment.friendsViewModel) {
+                            await environment.refreshAllFeeds()
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "person.text.rectangle.fill")
+                                .font(.title3)
+                                .foregroundStyle(AppTheme.brand)
+                                .frame(width: 34, height: 34)
+                                .background(
+                                    AppTheme.brand.opacity(0.14),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                )
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Friend Nicknames & Aliases")
+                                    .font(.body.weight(.medium))
+
+                                Text(customizedAliasCount > 0
+                                     ? "\(customizedAliasCount) customized • Manage voice & balance names"
+                                     : "Custom names for voice & balances without conflicts")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 3)
+                    }
+                } header: {
+                    Text("Voice & Friends")
+                } footer: {
+                    Text("Give friends unique nicknames and spoken aliases (like \"Rishabh Office\" or \"flatmate\") so BoloSplit resolves balances and voice commands without name collisions.")
                 }
 
                 Section {

@@ -16,9 +16,24 @@ struct HealthResponse: Codable, Equatable, Sendable {
 struct UserBalance: Codable, Identifiable, Equatable, Sendable {
     let userId: UUID
     let userName: String
+    let nickname: String?
     @JSONDecimal var netBalance: Decimal
 
     var id: UUID { userId }
+
+    var displayName: String {
+        if let nickname = nickname?.trimmingCharacters(in: .whitespacesAndNewlines), !nickname.isEmpty {
+            return nickname
+        }
+        return userName
+    }
+
+    init(userId: UUID, userName: String, nickname: String? = nil, netBalance: Decimal) {
+        self.userId = userId
+        self.userName = userName
+        self.nickname = nickname
+        self._netBalance = JSONDecimal(wrappedValue: netBalance)
+    }
 }
 
 struct BalanceSummary: Codable, Equatable, Sendable {

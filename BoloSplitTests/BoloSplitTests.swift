@@ -51,4 +51,43 @@ final class LedgerMathAndRoutingTests: XCTestCase {
 
         XCTAssertTrue(env.pendingVoiceDeepLink)
     }
+
+    func testFriendUpdateEncodesNullNicknameWhenCleared() throws {
+        let payload = FriendUpdate(nickname: nil, aliases: ["flatmate"], includeNickname: true)
+        let data = try JSONCoders.encoder.encode(payload)
+        let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+
+        XCTAssertNotNil(obj)
+        XCTAssertTrue(obj?["nickname"] is NSNull)
+        XCTAssertEqual(obj?["aliases"] as? [String], ["flatmate"])
+    }
+
+    func testBalanceAndGroupMemberDecodeOptionalNickname() throws {
+        let balanceJSON = """
+        {
+          "user_id": "11111111-1111-1111-1111-111111111111",
+          "user_name": "Rishabh",
+          "nickname": "Rishabh Office",
+          "net_balance": "200.00"
+        }
+        """.data(using: .utf8)!
+        let bal = try JSONCoders.decoder.decode(UserBalance.self, from: balanceJSON)
+        XCTAssertEqual(bal.nickname, "Rishabh Office")
+        XCTAssertEqual(bal.displayName, "Rishabh Office")
+
+        let memberJSON = """
+        {
+          "user_id": "22222222-2222-2222-2222-222222222222",
+          "name": "Rishabh",
+          "nickname": "Rishabh Flat",
+          "email": "r2@example.com",
+          "phone": "+919822222222",
+          "role": "member",
+          "joined_at": "2026-11-21T10:00:00+00:00"
+        }
+        """.data(using: .utf8)!
+        let member = try JSONCoders.decoder.decode(GroupMemberRead.self, from: memberJSON)
+        XCTAssertEqual(member.nickname, "Rishabh Flat")
+        XCTAssertEqual(member.displayName, "Rishabh Flat")
+    }
 }

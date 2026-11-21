@@ -29,6 +29,10 @@ final class FriendDetailViewModel {
         self.onLedgerMutated = onLedgerMutated
     }
 
+    var displayName: String {
+        feed?.displayName ?? friend.displayName
+    }
+
     var netBalance: Decimal {
         feed?.netBalance ?? friend.netBalance
     }

@@ -47,7 +47,7 @@ final class ExpenseDetailViewModel {
 
             if let friends = await friendsTask {
                 for friend in friends {
-                    knownUserNames[friend.friendId] = friend.friendName
+                    knownUserNames[friend.friendId] = friend.displayName
                     knownUserNames[friend.userId] = "You"
                 }
             }
