@@ -166,4 +166,84 @@ final class VoiceViewModelTests: XCTestCase {
         XCTAssertTrue(mockRecorder.didCancelRecording)
         XCTAssertTrue(mockSpeech.didCallStop)
     }
+
+    func testFinishAndSubmitRecordingBackendUnclearAudioError() async {
+        mockVoiceService.mockAudioResponse = VoiceIngestResponse(
+            status: "ERROR",
+            actionType: "UNKNOWN",
+            count: 0,
+            expenses: [],
+            spokenConfirmation: "Sound was not clear. Please speak again clearly.",
+            isAmbiguous: false,
+            clarificationPrompt: "Sound was not clear. Please speak again clearly.",
+            errorCode: "UNCLEAR_AUDIO"
+        )
+
+        mockRecorder.permissionGranted = true
+        await viewModel.startListening()
+        viewModel.finishAndSubmitRecording()
+
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        guard case .error(let message) = viewModel.state else {
+            XCTFail("Expected .error state, got \(viewModel.state)")
+            return
+        }
+
+        XCTAssertEqual(message, "Sound was not clear. Please speak again clearly.")
+        XCTAssertEqual(viewModel.lastErrorCode, "UNCLEAR_AUDIO")
+        XCTAssertEqual(mockSpeech.lastSpokenText, "Sound was not clear. Please speak again clearly.")
+        XCTAssertFalse(ledgerMutatedCalled)
+    }
+
+    func testSubmitTypedCommandPreservesTextOnBackendError() async {
+        mockVoiceService.mockTextResponse = VoiceIngestResponse(
+            status: "ERROR",
+            actionType: "CREATE",
+            count: 0,
+            expenses: [],
+            spokenConfirmation: "Couldn't find friend 'Rishab'. Please speak again using their nickname or add them first.",
+            isAmbiguous: false,
+            clarificationPrompt: "Couldn't find friend 'Rishab'. Please speak again using their nickname or add them first.",
+            errorCode: "UNKNOWN_FRIEND"
+        )
+
+        viewModel.switchToTyping()
+        viewModel.typedCommand = "add 200 on rishab"
+        viewModel.submitTypedCommand()
+
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        guard case .error(let message) = viewModel.state else {
+            XCTFail("Expected .error state, got \(viewModel.state)")
+            return
+        }
+
+        XCTAssertEqual(viewModel.lastErrorCode, "UNKNOWN_FRIEND")
+        XCTAssertTrue(message.contains("Rishab"))
+        XCTAssertEqual(viewModel.typedCommand, "add 200 on rishab")
+        XCTAssertFalse(ledgerMutatedCalled)
+    }
+
+    func testVoiceIngestResponseDecodesSnakeCaseErrorCode() throws {
+        let json = """
+        {
+          "status": "ERROR",
+          "action_type": "UNKNOWN",
+          "count": 0,
+          "expenses": [],
+          "spoken_confirmation": "Sound was not clear. Please speak again clearly.",
+          "is_ambiguous": false,
+          "clarification_prompt": "Sound was not clear. Please speak again clearly.",
+          "error_code": "UNCLEAR_AUDIO"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONCoders.decoder.decode(VoiceIngestResponse.self, from: json)
+        XCTAssertEqual(decoded.status, "ERROR")
+        XCTAssertEqual(decoded.actionType, "UNKNOWN")
+        XCTAssertEqual(decoded.count, 0)
+        XCTAssertEqual(decoded.errorCode, "UNCLEAR_AUDIO")
+        XCTAssertEqual(decoded.spokenConfirmation, "Sound was not clear. Please speak again clearly.")
+    }
 }

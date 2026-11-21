@@ -23,6 +23,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
     let spokenConfirmation: String?
     let isAmbiguous: Bool
     let clarificationPrompt: String?
+    let errorCode: String?
 
     enum CodingKeys: String, CodingKey {
         case status
@@ -34,6 +35,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         case spokenConfirmation
         case isAmbiguous
         case clarificationPrompt
+        case errorCode
     }
 
     init(
@@ -45,7 +47,8 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         balanceSummary: BalanceSummary? = nil,
         spokenConfirmation: String? = nil,
         isAmbiguous: Bool = false,
-        clarificationPrompt: String? = nil
+        clarificationPrompt: String? = nil,
+        errorCode: String? = nil
     ) {
         self.status = status
         self.actionType = actionType
@@ -56,6 +59,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         self.spokenConfirmation = spokenConfirmation
         self.isAmbiguous = isAmbiguous
         self.clarificationPrompt = clarificationPrompt
+        self.errorCode = errorCode
     }
 
     init(from decoder: Decoder) throws {
@@ -69,6 +73,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         self.spokenConfirmation = try container.decodeIfPresent(String.self, forKey: .spokenConfirmation)
         self.isAmbiguous = try container.decodeIfPresent(Bool.self, forKey: .isAmbiguous) ?? false
         self.clarificationPrompt = try container.decodeIfPresent(String.self, forKey: .clarificationPrompt)
+        self.errorCode = try container.decodeIfPresent(String.self, forKey: .errorCode)
     }
 
     var normalizedAction: String {

@@ -302,19 +302,49 @@ struct SiriVoiceOverlayView: View {
         }
     }
 
+    private var errorHeadline: String {
+        switch viewModel.lastErrorCode?.uppercased() {
+        case "UNCLEAR_AUDIO":
+            return "Sound Was Not Clear"
+        case "UNKNOWN_FRIEND":
+            return "Friend Not Found"
+        case "UNKNOWN_GROUP":
+            return "Group Not Found"
+        case "INVALID_AMOUNT":
+            return "Amount Was Unclear"
+        case "UNRESOLVED_SPLIT":
+            return "Split Was Unclear"
+        default:
+            return "Didn't Catch That"
+        }
+    }
+
+    private var errorIconName: String {
+        switch viewModel.lastErrorCode?.uppercased() {
+        case "UNCLEAR_AUDIO":
+            return "waveform.slash"
+        case "UNKNOWN_FRIEND":
+            return "person.crop.circle.badge.questionmark"
+        case "UNKNOWN_GROUP":
+            return "person.3.sequence.fill"
+        default:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+
     private func errorBody(message: String) -> some View {
         VStack(spacing: 14) {
             ZStack {
                 Circle()
                     .fill(AppTheme.owedNegative.opacity(0.14))
                     .frame(width: 72, height: 72)
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 40))
+                Image(systemName: errorIconName)
+                    .font(.system(size: 38))
                     .foregroundStyle(AppTheme.owedNegative)
                     .symbolEffect(.bounce, value: stateTransitionKey)
             }
 
-            Text("Didn't Catch That")
+            Text(errorHeadline)
                 .font(.title3.bold())
 
             Text(message)

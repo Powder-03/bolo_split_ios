@@ -32,6 +32,7 @@ final class VoiceViewModel {
     let groupName: String?
 
     private(set) var state: VoiceOverlayState = .idle
+    private(set) var lastErrorCode: String?
     var typedCommand: String = ""
 
     private var activeTask: Task<Void, Never>?
@@ -77,6 +78,7 @@ final class VoiceViewModel {
     func startListening() async {
         activeTask?.cancel()
         speechService.stop()
+        lastErrorCode = nil
 
         do {
             try await recorder.startRecording()
@@ -128,6 +130,7 @@ final class VoiceViewModel {
         activeTask?.cancel()
         recorder.cancelRecording()
         speechService.stop()
+        lastErrorCode = nil
         state = .typing
     }
 
@@ -136,6 +139,7 @@ final class VoiceViewModel {
         guard !trimmed.isEmpty else { return }
 
         speechService.stop()
+        lastErrorCode = nil
         state = .processing("Processing command...")
 
         activeTask?.cancel()
@@ -144,10 +148,10 @@ final class VoiceViewModel {
             do {
                 let response = try await voiceService.sendVoiceText(trimmed, groupId: groupId)
                 guard !Task.isCancelled else { return }
-                typedCommand = ""
                 await handleVoiceResponse(response)
             } catch {
                 guard !Task.isCancelled else { return }
+                lastErrorCode = nil
                 state = .error(error.localizedDescription)
             }
         }
@@ -170,6 +174,7 @@ final class VoiceViewModel {
         let upperStatus = response.status.uppercased()
 
         if response.isAmbiguous || upperStatus == "AMBIGUOUS" {
+            lastErrorCode = response.errorCode
             let prompt = response.clarificationPrompt
                 ?? response.spokenConfirmation
                 ?? "Found multiple matching records. Please clarify."
@@ -177,15 +182,24 @@ final class VoiceViewModel {
                 clarification: prompt,
                 spokenConfirmation: response.spokenConfirmation
             )
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
             speechService.speak(response.spokenConfirmation ?? prompt)
             return
         }
 
-        if upperStatus == "ERROR" {
-            state = .error(response.spokenConfirmation ?? "Could not process voice command.")
+        if upperStatus != "SUCCESS" {
+            lastErrorCode = response.errorCode
+            let message = response.clarificationPrompt
+                ?? response.spokenConfirmation
+                ?? "Sound was not clear. Please speak again clearly."
+            state = .error(message)
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            speechService.speak(response.spokenConfirmation ?? message)
             return
         }
 
+        lastErrorCode = nil
+        typedCommand = ""
         state = .success(response)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
 
