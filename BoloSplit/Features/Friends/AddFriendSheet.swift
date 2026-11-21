@@ -56,9 +56,9 @@ struct AddFriendSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } header: {
-                    Text("Voice Recognition (Optional)")
+                    Text("Nickname & Voice Aliases (Optional)")
                 } footer: {
-                    Text("Add phonetic spellings (e.g. \"sahej, bhai\") so BoloSplit AI recognizes them even if speech-to-text spells their name differently.")
+                    Text("Set a unique nickname (e.g. \"Rishabh Office\") and spoken aliases (e.g. \"office bro, rishabh office\") so BoloSplit Voice and balances tell friends apart without conflicts.")
                 }
 
                 Section {

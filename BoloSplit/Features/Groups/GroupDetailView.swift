@@ -23,14 +23,14 @@ struct GroupDetailView: View {
             let isCaller = callerEmail != nil && member.email.lowercased() == callerEmail
             return ExpenseParticipant(
                 id: member.userId,
-                name: member.name,
+                name: member.displayName,
                 isCurrentUser: isCaller
             )
         }
     }
 
     private var knownNamesMap: [UUID: String] {
-        Dictionary(uniqueKeysWithValues: viewModel.members.map { ($0.userId, $0.name) })
+        Dictionary(uniqueKeysWithValues: viewModel.members.map { ($0.userId, $0.displayName) })
     }
 
     var body: some View {
@@ -87,9 +87,9 @@ struct GroupDetailView: View {
                             HStack(spacing: 12) {
                                 ForEach(Array(viewModel.members.enumerated()), id: \.element.id) { index, member in
                                     VStack(spacing: 5) {
-                                        UserAvatarBadge(name: member.name, size: 44)
+                                        UserAvatarBadge(name: member.displayName, size: 44)
 
-                                        Text(member.name)
+                                        Text(member.displayName)
                                             .font(.caption2.weight(.medium))
                                             .lineLimit(1)
                                             .frame(maxWidth: 64)
@@ -130,13 +130,21 @@ struct GroupDetailView: View {
                             ForEach(balances) { bal in
                                 HStack(spacing: 10) {
                                     UserAvatarBadge(
-                                        name: bal.userName,
+                                        name: bal.displayName,
                                         size: 32,
                                         ringColor: bal.netBalance == 0 ? nil : AppTheme.balanceColor(for: bal.netBalance)
                                     )
 
-                                    Text(bal.userName)
-                                        .font(.subheadline.weight(.medium))
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(bal.displayName)
+                                            .font(.subheadline.weight(.medium))
+                                        if let nick = bal.nickname, !nick.isEmpty,
+                                           nick.lowercased() != bal.userName.lowercased() {
+                                            Text(bal.userName)
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
                                     Spacer()
                                     if bal.netBalance > 0 {
                                         Text("owes you \(CurrencyFormatter.formatINR(bal.netBalance))")

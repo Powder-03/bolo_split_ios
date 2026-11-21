@@ -14,6 +14,13 @@ struct FriendRowItem: Identifiable, Equatable {
     let nickname: String?
     let netBalance: Decimal
     let aliases: [String]
+
+    var displayName: String {
+        if let nickname = nickname?.trimmingCharacters(in: .whitespacesAndNewlines), !nickname.isEmpty {
+            return nickname
+        }
+        return name
+    }
 }
 
 @Observable
@@ -21,6 +28,7 @@ final class FriendsTabViewModel {
     private let ledgerService: LedgerServiceProtocol
 
     var balanceSummary: BalanceSummary?
+    var friends: [FriendRead] = []
     var friendRows: [FriendRowItem] = []
     var isLoading = false
     var isSavingFriend = false
@@ -37,9 +45,12 @@ final class FriendsTabViewModel {
             async let balancesTask = ledgerService.fetchBalances(groupId: nil)
             async let friendsTask = ledgerService.fetchFriends()
 
-            let (summary, friends) = try await (balancesTask, friendsTask)
+            let (summary, loadedFriends) = try await (balancesTask, friendsTask)
             balanceSummary = summary
-            friendRows = Self.merge(summary: summary, friends: friends)
+            friends = loadedFriends.sorted {
+                $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            }
+            friendRows = Self.merge(summary: summary, friends: loadedFriends)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -57,11 +68,7 @@ final class FriendsTabViewModel {
         let cleanPhone = phone?.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanNickname = nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let parsedAliases = aliasesText
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-            .filter { !$0.isEmpty }
+        let parsedAliases = Self.parseAliases(from: aliasesText)
 
         let payload = FriendCreate(
             friendEmail: (cleanEmail?.isEmpty == false) ? cleanEmail : nil,
@@ -83,8 +90,79 @@ final class FriendsTabViewModel {
         }
     }
 
+    func updateFriendAliases(
+        friendId: UUID,
+        nickname: String?,
+        aliases: [String]
+    ) async -> Result<FriendRead, Error> {
+        let trimmedNickname = nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNickname = (trimmedNickname?.isEmpty == false) ? trimmedNickname : nil
+        let cleanAliases = Self.normalizeAliases(aliases)
+
+        let payload = FriendUpdate(
+            nickname: cleanNickname,
+            aliases: cleanAliases,
+            includeNickname: true
+        )
+
+        isSavingFriend = true
+        defer { isSavingFriend = false }
+
+        do {
+            let updated = try await ledgerService.updateFriendAliases(friendId: friendId, payload: payload)
+            await loadData()
+            return .success(updated)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    func conflictingFriend(
+        forNickname nickname: String?,
+        aliases: [String],
+        excludingFriendId: UUID?
+    ) -> (friend: FriendRead, label: String)? {
+        var candidateLabels = Set(Self.normalizeAliases(aliases))
+        if let cleanNick = nickname?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           !cleanNick.isEmpty {
+            candidateLabels.insert(cleanNick)
+        }
+        guard !candidateLabels.isEmpty else { return nil }
+
+        for other in friends where other.friendId != excludingFriendId {
+            var otherLabels = Set(Self.normalizeAliases(other.aliases))
+            if let otherNick = other.nickname?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+               !otherNick.isEmpty {
+                otherLabels.insert(otherNick)
+            }
+            let overlap = candidateLabels.intersection(otherLabels).sorted()
+            if let firstConflict = overlap.first {
+                return (other, firstConflict)
+            }
+        }
+        return nil
+    }
+
+    static func parseAliases(from text: String) -> [String] {
+        normalizeAliases(text.split(separator: ",").map(String.init))
+    }
+
+    static func normalizeAliases(_ rawAliases: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for raw in rawAliases {
+            let norm = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !norm.isEmpty && !seen.contains(norm) {
+                seen.insert(norm)
+                result.append(norm)
+            }
+        }
+        return result
+    }
+
     func clear() {
         balanceSummary = nil
+        friends = []
         friendRows = []
         errorMessage = nil
     }
@@ -98,11 +176,12 @@ final class FriendsTabViewModel {
         var rowsById: [UUID: FriendRowItem] = [:]
 
         for friend in friends {
-            let net = balanceMap[friend.friendId]?.netBalance ?? 0
+            let matchedBal = balanceMap[friend.friendId]
+            let net = matchedBal?.netBalance ?? 0
             rowsById[friend.friendId] = FriendRowItem(
                 id: friend.friendId,
                 name: friend.friendName,
-                nickname: friend.nickname,
+                nickname: friend.nickname ?? matchedBal?.nickname,
                 netBalance: net,
                 aliases: friend.aliases
             )
@@ -113,20 +192,20 @@ final class FriendsTabViewModel {
             rowsById[bal.userId] = FriendRowItem(
                 id: bal.userId,
                 name: bal.userName,
-                nickname: nil,
+                nickname: bal.nickname,
                 netBalance: bal.netBalance,
                 aliases: []
             )
         }
 
-        // Non-zero balances first (Splitwise style), then alphabetical
+        // Non-zero balances first (Splitwise style), then alphabetical by displayName
         return rowsById.values.sorted { lhs, rhs in
             let lhsZero = lhs.netBalance == 0
             let rhsZero = rhs.netBalance == 0
             if lhsZero != rhsZero {
                 return !lhsZero
             }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
     }
 }

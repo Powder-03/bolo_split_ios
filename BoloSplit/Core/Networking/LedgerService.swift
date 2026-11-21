@@ -11,6 +11,7 @@ protocol LedgerServiceProtocol {
     func fetchBalances(groupId: UUID?) async throws -> BalanceSummary
     func fetchFriends() async throws -> [FriendRead]
     func createFriend(_ payload: FriendCreate) async throws -> FriendRead
+    func updateFriendAliases(friendId: UUID, payload: FriendUpdate) async throws -> FriendRead
     func fetchBilateralFeed(friendId: UUID, limit: Int, offset: Int) async throws -> BilateralActivityFeed
     func fetchGroups() async throws -> [GroupRead]
     func createGroup(name: String) async throws -> GroupRead
@@ -51,6 +52,11 @@ final class LedgerService: LedgerServiceProtocol {
 
     func createFriend(_ payload: FriendCreate) async throws -> FriendRead {
         let endpoint = try Endpoint.post("/friends", body: payload)
+        return try await apiClient.request(endpoint)
+    }
+
+    func updateFriendAliases(friendId: UUID, payload: FriendUpdate) async throws -> FriendRead {
+        let endpoint = try Endpoint.patch("/friends/\(friendId.uuidString)", body: payload)
         return try await apiClient.request(endpoint)
     }
 

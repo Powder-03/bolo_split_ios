@@ -188,19 +188,27 @@ private struct FriendBalanceRow: View {
     var body: some View {
         HStack(spacing: 12) {
             UserAvatarBadge(
-                name: friend.name,
+                name: friend.displayName,
                 size: 44,
                 ringColor: friend.netBalance == 0 ? nil : AppTheme.balanceColor(for: friend.netBalance)
             )
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(friend.name)
+                Text(friend.displayName)
                     .font(.body.weight(.medium))
 
                 if let nickname = friend.nickname, !nickname.isEmpty, nickname.lowercased() != friend.name.lowercased() {
-                    Text("aka \(nickname)")
+                    Text(friend.aliases.isEmpty
+                         ? friend.name
+                         : "\(friend.name) • \(friend.aliases.prefix(2).joined(separator: ", "))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else if !friend.aliases.isEmpty {
+                    Text("Aliases: \(friend.aliases.prefix(2).joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
 

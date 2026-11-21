@@ -136,7 +136,106 @@ final class FriendsTabViewModelTests: XCTestCase {
         viewModel.clear()
 
         XCTAssertNil(viewModel.balanceSummary)
+        XCTAssertTrue(viewModel.friends.isEmpty)
         XCTAssertTrue(viewModel.friendRows.isEmpty)
         XCTAssertNil(viewModel.errorMessage)
+    }
+
+    func testUpdateFriendAliasesSuccessAndClearNickname() async {
+        let f1Id = UUID()
+        mockLedger.mockFriends = [
+            FriendRead(
+                id: UUID(),
+                userId: UUID(),
+                friendId: f1Id,
+                friendName: "Rishabh",
+                friendEmail: "r1@example.com",
+                friendPhone: "+919800000001",
+                nickname: nil,
+                aliases: [],
+                createdAt: Date()
+            )
+        ]
+        await viewModel.loadData()
+
+        let updateRes = await viewModel.updateFriendAliases(
+            friendId: f1Id,
+            nickname: "Rishabh Office",
+            aliases: ["Office Bro", "rishabh office", "office bro"]
+        )
+
+        switch updateRes {
+        case .success(let updated):
+            XCTAssertEqual(updated.nickname, "Rishabh Office")
+            XCTAssertEqual(updated.aliases, ["office bro", "rishabh office"])
+            XCTAssertEqual(viewModel.friendRows.first?.displayName, "Rishabh Office")
+        case .failure(let error):
+            XCTFail("Expected success but got \(error)")
+        }
+
+        let clearRes = await viewModel.updateFriendAliases(
+            friendId: f1Id,
+            nickname: "   ",
+            aliases: []
+        )
+
+        switch clearRes {
+        case .success(let cleared):
+            XCTAssertNil(cleared.nickname)
+            XCTAssertTrue(cleared.aliases.isEmpty)
+            XCTAssertEqual(viewModel.friendRows.first?.displayName, "Rishabh")
+        case .failure(let error):
+            XCTFail("Expected clear success but got \(error)")
+        }
+    }
+
+    func testUpdateFriendAliasesDetectsConflictAcrossFriends() async {
+        let r1Id = UUID()
+        let r2Id = UUID()
+        mockLedger.mockFriends = [
+            FriendRead(
+                id: UUID(),
+                userId: UUID(),
+                friendId: r1Id,
+                friendName: "Rishabh",
+                friendEmail: "r1@example.com",
+                friendPhone: "+919800000001",
+                nickname: "Rishabh Office",
+                aliases: ["office bro"],
+                createdAt: Date()
+            ),
+            FriendRead(
+                id: UUID(),
+                userId: UUID(),
+                friendId: r2Id,
+                friendName: "Rishabh",
+                friendEmail: "r2@example.com",
+                friendPhone: "+919800000002",
+                nickname: "Rishabh Flat",
+                aliases: ["flatmate"],
+                createdAt: Date()
+            )
+        ]
+        await viewModel.loadData()
+
+        let localConflict = viewModel.conflictingFriend(
+            forNickname: "rishabh office",
+            aliases: ["new alias"],
+            excludingFriendId: r2Id
+        )
+        XCTAssertEqual(localConflict?.friend.friendId, r1Id)
+        XCTAssertEqual(localConflict?.label, "rishabh office")
+
+        let serverConflict = await viewModel.updateFriendAliases(
+            friendId: r2Id,
+            nickname: "Rishabh Flat",
+            aliases: ["office bro"]
+        )
+        switch serverConflict {
+        case .success:
+            XCTFail("Expected 409 conflict failure")
+        case .failure(let error):
+            XCTAssertTrue(error.localizedDescription.contains("already assigned"))
+        }
     }
 }

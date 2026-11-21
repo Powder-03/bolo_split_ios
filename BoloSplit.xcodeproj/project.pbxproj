@@ -28,6 +28,7 @@
 		655217F5C033891282451EB8 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC50B80C39898755829FFF1 /* GroupModels.swift */; };
 		69520D83A8DDA2606B743CB9 /* BalanceBannerCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A32FC7D36724F4D74500936 /* BalanceBannerCard.swift */; };
 		6EC6120A359BBB2BD6CCE95F /* AccountTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38906BC333319B0BE7E5931A /* AccountTabView.swift */; };
+		6F1234567890ABCDEF123456 /* FriendAliasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1234567890ABCDEF123457 /* FriendAliasesView.swift */; };
 		71841E4D358D36E73B13F9BA /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 3BB03C11855B597E09488F1A /* GoogleSignInSwift */; };
 		7610C4B32B82C02731FCF264 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A252B5460B58754F57257AB6 /* AppTheme.swift */; };
 		76C4117B829EDF192D74F5F6 /* SiriVoiceOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB6436534A52548E77739E0 /* SiriVoiceOverlayView.swift */; };
@@ -125,6 +126,7 @@
 		31ADA767D255EC063EE0D909 /* ActivityTabViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivityTabViewModel.swift; sourceTree = "<group>"; };
 		36C088FAFF01E4D56FA9FAFF /* GroupsTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupsTabView.swift; sourceTree = "<group>"; };
 		38906BC333319B0BE7E5931A /* AccountTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountTabView.swift; sourceTree = "<group>"; };
+		6F1234567890ABCDEF123457 /* FriendAliasesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FriendAliasesView.swift; sourceTree = "<group>"; };
 		3CE596E80995FD405B9A81F4 /* LoginView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		41509C347541C7EFC33DD871 /* AppConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		47202A173BA14151C03D1982 /* AuthService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 			isa = PBXGroup;
 			children = (
 				38906BC333319B0BE7E5931A /* AccountTabView.swift */,
+				6F1234567890ABCDEF123457 /* FriendAliasesView.swift */,
 				3CE596E80995FD405B9A81F4 /* LoginView.swift */,
 			);
 			path = Account;
@@ -630,6 +633,7 @@
 				F7EE1873C982D65C586F854D /* LedgerService.swift in Sources */,
 				CBBD684DD742AC1D8A68C9DE /* VoiceService.swift in Sources */,
 				6EC6120A359BBB2BD6CCE95F /* AccountTabView.swift in Sources */,
+				6F1234567890ABCDEF123456 /* FriendAliasesView.swift in Sources */,
 				EE141091F220287BD8676FBD /* LoginView.swift in Sources */,
 				5855CD01E6347C96FA8C5EA5 /* ActivityTabView.swift in Sources */,
 				F1A0B746A51C9540832CB47C /* ActivityTabViewModel.swift in Sources */,

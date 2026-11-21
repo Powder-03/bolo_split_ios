@@ -12,6 +12,11 @@ struct FriendDetailView: View {
     @Environment(AppEnvironment.self) private var environment
     @Bindable var viewModel: FriendDetailViewModel
     @State private var showSettleUp = false
+    @State private var showEditAlias = false
+
+    private var matchingFriendRead: FriendRead? {
+        environment.friendsViewModel.friends.first { $0.friendId == viewModel.friend.id }
+    }
 
     var body: some View {
         Group {
@@ -32,11 +37,13 @@ struct FriendDetailView: View {
                     Section {
                         FriendSummaryHeaderCard(
                             friend: viewModel.friend,
+                            displayName: viewModel.displayName,
                             netBalance: viewModel.netBalance,
-                            summaryText: viewModel.feed?.summaryText
-                        ) {
-                            showSettleUp = true
-                        }
+                            summaryText: viewModel.feed?.summaryText,
+                            canEditAlias: matchingFriendRead != nil,
+                            onEditAlias: { showEditAlias = true },
+                            onSettleUp: { showSettleUp = true }
+                        )
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
@@ -69,7 +76,7 @@ struct FriendDetailView: View {
                                         ExpenseDetailView(
                                             viewModel: environment.makeExpenseDetailViewModel(
                                                 expenseId: item.id,
-                                                knownUserNames: [viewModel.friend.id: viewModel.friend.name],
+                                                knownUserNames: [viewModel.friend.id: viewModel.displayName],
                                                 onChanged: {
                                                     await viewModel.loadFeed()
                                                 }
@@ -88,7 +95,7 @@ struct FriendDetailView: View {
                 .animation(AppMotion.snappy, value: viewModel.timeline)
             }
         }
-        .navigationTitle(viewModel.friend.name)
+        .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -108,13 +115,24 @@ struct FriendDetailView: View {
             SettleUpSheet(
                 viewModel: environment.makeSettleUpViewModel(
                     friendId: viewModel.friend.id,
-                    friendName: viewModel.friend.name,
+                    friendName: viewModel.displayName,
                     netBalance: viewModel.netBalance,
                     onSettled: {
                         await viewModel.loadFeed()
                     }
                 )
             )
+        }
+        .sheet(isPresented: $showEditAlias) {
+            if let friendRead = matchingFriendRead {
+                EditFriendAliasSheet(
+                    friend: friendRead,
+                    viewModel: environment.friendsViewModel
+                ) {
+                    await viewModel.loadFeed()
+                    await environment.refreshAllFeeds()
+                }
+            }
         }
     }
 }
@@ -123,8 +141,11 @@ struct FriendDetailView: View {
 
 private struct FriendSummaryHeaderCard: View {
     let friend: FriendRowItem
+    let displayName: String
     let netBalance: Decimal
     let summaryText: String?
+    let canEditAlias: Bool
+    let onEditAlias: () -> Void
     let onSettleUp: () -> Void
 
     private var netTint: Color {
@@ -135,14 +156,32 @@ private struct FriendSummaryHeaderCard: View {
         VStack(spacing: 16) {
             HStack(spacing: 14) {
                 UserAvatarBadge(
-                    name: friend.name,
+                    name: displayName,
                     size: 56,
                     ringColor: netBalance == 0 ? AppTheme.brand : netTint
                 )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(friend.name)
-                        .font(.title3.bold())
+                    HStack(spacing: 6) {
+                        Text(displayName)
+                            .font(.title3.bold())
+
+                        if canEditAlias {
+                            Button(action: onEditAlias) {
+                                Image(systemName: "pencil.circle.fill")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.brand)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Edit nickname and aliases")
+                        }
+                    }
+
+                    if displayName.lowercased() != friend.name.lowercased() {
+                        Text("Account name: \(friend.name)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
                     Text(displaySummary)
                         .font(.subheadline.weight(.semibold))

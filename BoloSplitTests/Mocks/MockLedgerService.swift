@@ -67,6 +67,52 @@ final class MockLedgerService: LedgerServiceProtocol {
         return friend
     }
 
+    func updateFriendAliases(friendId: UUID, payload: FriendUpdate) async throws -> FriendRead {
+        if let shouldThrowError { throw shouldThrowError }
+        guard let index = mockFriends.firstIndex(where: { $0.friendId == friendId }) else {
+            throw APIError.httpError(statusCode: 404, message: "Friend relationship not found.")
+        }
+
+        let existing = mockFriends[index]
+        let nextNickname = payload.nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNickname = (nextNickname?.isEmpty == false) ? nextNickname : nil
+        let cleanAliases = (payload.aliases ?? existing.aliases)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+
+        var candidateLabels = Set(cleanAliases)
+        if let cleanNickname {
+            candidateLabels.insert(cleanNickname.lowercased())
+        }
+
+        for other in mockFriends where other.friendId != friendId {
+            var otherLabels = Set(other.aliases.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+            if let otherNick = other.nickname?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !otherNick.isEmpty {
+                otherLabels.insert(otherNick)
+            }
+            if let conflict = candidateLabels.intersection(otherLabels).sorted().first {
+                throw APIError.httpError(
+                    statusCode: 409,
+                    message: "Alias or nickname '\(conflict)' is already assigned to another friend."
+                )
+            }
+        }
+
+        let updated = FriendRead(
+            id: existing.id,
+            userId: existing.userId,
+            friendId: existing.friendId,
+            friendName: existing.friendName,
+            friendEmail: existing.friendEmail,
+            friendPhone: existing.friendPhone,
+            nickname: cleanNickname,
+            aliases: cleanAliases,
+            createdAt: existing.createdAt
+        )
+        mockFriends[index] = updated
+        return updated
+    }
+
     func fetchBilateralFeed(friendId: UUID, limit: Int, offset: Int) async throws -> BilateralActivityFeed {
         if let shouldThrowError { throw shouldThrowError }
         return BilateralActivityFeed(

@@ -22,12 +22,38 @@ struct GroupRead: Codable, Identifiable, Equatable, Sendable {
 struct GroupMemberRead: Codable, Identifiable, Equatable, Sendable {
     let userId: UUID
     let name: String
+    let nickname: String?
     let email: String
     let phone: String?
     let role: String
     let joinedAt: Date
 
     var id: UUID { userId }
+
+    var displayName: String {
+        if let nickname = nickname?.trimmingCharacters(in: .whitespacesAndNewlines), !nickname.isEmpty {
+            return nickname
+        }
+        return name
+    }
+
+    init(
+        userId: UUID,
+        name: String,
+        nickname: String? = nil,
+        email: String,
+        phone: String?,
+        role: String,
+        joinedAt: Date
+    ) {
+        self.userId = userId
+        self.name = name
+        self.nickname = nickname
+        self.email = email
+        self.phone = phone
+        self.role = role
+        self.joinedAt = joinedAt
+    }
 }
 
 struct GroupDetailRead: Codable, Identifiable, Equatable, Sendable {
