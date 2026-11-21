@@ -39,13 +39,6 @@ struct AccountTabView: View {
                                 Text(user.email)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
-
-                                Text(user.isDevMode ? "Dev X-User-Email" : "Google • Firebase Auth")
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(AppTheme.brand)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(AppTheme.brand.opacity(0.14), in: Capsule())
                             }
                         }
                         .padding(.vertical, 6)
