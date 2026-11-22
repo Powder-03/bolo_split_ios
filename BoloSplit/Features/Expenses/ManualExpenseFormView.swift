@@ -263,7 +263,7 @@ struct ManualExpenseFormSheet: View {
                         }
                     }
 
-                    DatePicker("Date", selection: $viewModel.expenseDate, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Date", selection: $viewModel.expenseDate, displayedComponents: [.date])
                 }
 
                 Section {

@@ -711,10 +711,14 @@ private struct VoiceResultCard: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(expense.description)
                                         .font(.subheadline.weight(.semibold))
-                                    if expense.groupId == nil && expense.splits.count <= 1 {
+                                    if expense.isSoloExpense {
                                         Text("Self (Personal) • \(expense.category?.capitalized ?? "General")")
                                             .font(.caption)
                                             .foregroundStyle(AppTheme.brand)
+                                    } else if expense.groupId == nil && expense.splits.count == 1 {
+                                        Text("Charged to friend • Paid by \(expense.payerName ?? "You")")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     } else {
                                         Text("Split among \(max(1, expense.splits.count)) • Paid by \(expense.payerName ?? "You")")
                                             .font(.caption)

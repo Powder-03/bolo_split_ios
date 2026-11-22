@@ -296,7 +296,7 @@ private struct SelfExpenseRow: View {
                         .padding(.vertical, 2)
                         .background(catColor.opacity(0.12), in: Capsule())
 
-                    Text(expense.expenseDate.formatted(date: .abbreviated, time: .shortened))
+                    Text(expense.expenseDate.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -356,7 +356,7 @@ private struct AddSelfExpenseSheet: View {
                         }
                     }
 
-                    DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Date", selection: $date, displayedComponents: [.date])
                 }
 
                 Section {

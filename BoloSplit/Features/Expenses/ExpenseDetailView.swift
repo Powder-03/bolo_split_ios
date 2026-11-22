@@ -205,7 +205,7 @@ private struct ExpenseDetailHeaderCard: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Paid by \(expense.payerName ?? "Member")")
                         .font(.subheadline.weight(.medium))
-                    Text(expense.expenseDate.formatted(date: .abbreviated, time: .shortened))
+                    Text(expense.expenseDate.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -267,7 +267,7 @@ private struct EditExpenseSheet: View {
                         }
                     }
 
-                    DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Date", selection: $date, displayedComponents: [.date])
                 }
 
                 Section {

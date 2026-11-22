@@ -254,7 +254,7 @@ private struct BilateralTimelineRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                Text(item.date.formatted(date: .abbreviated, time: .shortened))
+                Text(item.date.formatted(date: .abbreviated, time: .omitted))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }

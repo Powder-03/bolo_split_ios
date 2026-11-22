@@ -47,14 +47,26 @@ final class ActivityTabViewModel {
         do {
             async let expensesTask = ledgerService.fetchExpenses(groupId: nil, scope: nil, limit: 50, offset: 0)
             async let settlementsTask = ledgerService.fetchSettlements(friendId: nil, groupId: nil, limit: 50, offset: 0)
+            async let friendsTask = try? ledgerService.fetchFriends()
 
-            let (expenses, settlements) = try await (expensesTask, settlementsTask)
+            let (expenses, settlements, friends) = try await (expensesTask, settlementsTask, friendsTask)
+            var friendNames: [UUID: String] = [:]
+            if let friends {
+                for friend in friends {
+                    friendNames[friend.friendId] = friend.displayName
+                }
+            }
 
             let expenseEntries = expenses.map { exp in
-                let isSolo = exp.groupId == nil && exp.splits.count <= 1
-                let subtitle = isSolo
-                    ? "Self (Personal) • \(exp.category?.capitalized ?? "General")"
-                    : "\(exp.payerName ?? "Someone") paid \(CurrencyFormatter.formatINR(exp.amount))"
+                let subtitle: String
+                if exp.isSoloExpense {
+                    subtitle = "Self (Personal) • \(exp.category?.capitalized ?? "General")"
+                } else if exp.groupId == nil, exp.splits.count == 1,
+                          let targetName = friendNames[exp.splits[0].userId] {
+                    subtitle = "\(exp.payerName ?? "Someone") paid \(CurrencyFormatter.formatINR(exp.amount)) • For \(targetName)"
+                } else {
+                    subtitle = "\(exp.payerName ?? "Someone") paid \(CurrencyFormatter.formatINR(exp.amount))"
+                }
                 return ActivityFeedEntry(
                     id: exp.id,
                     date: exp.expenseDate,

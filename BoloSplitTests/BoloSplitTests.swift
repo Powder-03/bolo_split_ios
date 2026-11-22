@@ -90,4 +90,90 @@ final class LedgerMathAndRoutingTests: XCTestCase {
         XCTAssertEqual(member.nickname, "Rishabh Flat")
         XCTAssertEqual(member.displayName, "Rishabh Flat")
     }
+
+    func testOnFriendSingleSplitExpenseIsNotClassifiedAsSolo() async {
+        let meId = UUID()
+        let rishabhId = UUID()
+        let expenseId = UUID()
+
+        let onFriend = ExpenseRead(
+            id: expenseId,
+            groupId: nil,
+            description: "Lunch",
+            amount: Decimal(500),
+            currency: "INR",
+            payerId: meId,
+            payerName: "Me",
+            category: "food",
+            expenseDate: Date(),
+            isDeleted: false,
+            createdAt: Date(),
+            updatedAt: Date(),
+            splits: [
+                ExpenseSplitRead(
+                    id: UUID(),
+                    expenseId: expenseId,
+                    userId: rishabhId,
+                    owedAmount: Decimal(500),
+                    splitType: "EQUAL",
+                    splitValue: nil,
+                    createdAt: Date()
+                )
+            ]
+        )
+        XCTAssertFalse(onFriend.isSoloExpense)
+
+        let soloExpense = ExpenseRead(
+            id: UUID(),
+            groupId: nil,
+            description: "Petrol",
+            amount: Decimal(500),
+            currency: "INR",
+            payerId: meId,
+            payerName: "Me",
+            category: "fuel",
+            expenseDate: Date(),
+            isDeleted: false,
+            createdAt: Date(),
+            updatedAt: Date(),
+            splits: [
+                ExpenseSplitRead(
+                    id: UUID(),
+                    expenseId: expenseId,
+                    userId: meId,
+                    owedAmount: Decimal(500),
+                    splitType: "EQUAL",
+                    splitValue: nil,
+                    createdAt: Date()
+                )
+            ]
+        )
+        XCTAssertTrue(soloExpense.isSoloExpense)
+
+        let mockLedger = MockLedgerService()
+        mockLedger.mockFriends = [
+            FriendRead(
+                id: UUID(),
+                userId: meId,
+                friendId: rishabhId,
+                friendName: "Rishabh",
+                friendEmail: "rishabh@example.com",
+                friendPhone: nil,
+                nickname: "Rishabh Office",
+                aliases: [],
+                createdAt: Date()
+            )
+        ]
+        mockLedger.mockExpenses = [onFriend, soloExpense]
+
+        let activityVM = ActivityTabViewModel(ledgerService: mockLedger)
+        await activityVM.loadActivity()
+
+        XCTAssertEqual(activityVM.entries.count, 2)
+        let friendEntry = activityVM.entries.first { $0.id == onFriend.id }
+        let soloEntry = activityVM.entries.first { $0.id == soloExpense.id }
+        XCTAssertTrue(friendEntry?.subtitle.contains("For Rishabh Office") ?? false)
+        XCTAssertFalse(friendEntry?.subtitle.contains("Self") ?? true)
+        XCTAssertTrue(soloEntry?.subtitle.hasPrefix("Self (Personal)") ?? false)
+    }
 }

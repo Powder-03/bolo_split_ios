@@ -56,6 +56,11 @@ struct ExpenseRead: Codable, Identifiable, Equatable, Sendable {
     let createdAt: Date
     let updatedAt: Date
     let splits: [ExpenseSplitRead]
+
+    /// True only when the expense is non-group and every split (if any) belongs to the payer.
+    var isSoloExpense: Bool {
+        groupId == nil && (splits.isEmpty || splits.allSatisfy { $0.userId == payerId })
+    }
 }
 
 // MARK: - Solo / Self Expenses

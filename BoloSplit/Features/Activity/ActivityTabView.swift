@@ -45,7 +45,7 @@ struct ActivityTabView: View {
                     return entry.isSettlement
                 case .personal:
                     if case .expense(let exp) = entry.kind {
-                        return exp.groupId == nil && exp.splits.count <= 1
+                        return exp.isSoloExpense
                     }
                     return false
                 }
@@ -266,7 +266,7 @@ private struct ActivityRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                Text(entry.date.formatted(date: .abbreviated, time: .omitted))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
