@@ -73,6 +73,26 @@ struct SelfExpenseCreate: Codable, Sendable {
     let expenseDate: Date?
 }
 
+struct SelfExpenseUpdate: Codable, Sendable {
+    let description: String?
+    @OptionalJSONDecimal var amount: Decimal?
+    let category: String?
+    let expenseDate: Date?
+}
+
+struct SelfExpenseRead: Codable, Identifiable, Equatable, Sendable {
+    let id: UUID
+    let userId: UUID
+    let description: String
+    @JSONDecimal var amount: Decimal
+    let currency: String
+    let category: String?
+    let expenseDate: Date
+    let isDeleted: Bool
+    let createdAt: Date
+    let updatedAt: Date
+}
+
 struct SelfCategoryStat: Codable, Identifiable, Equatable, Sendable {
     let category: String
     @JSONDecimal var totalAmount: Decimal
@@ -87,5 +107,5 @@ struct SelfExpensesSummary: Codable, Equatable, Sendable {
     let totalCount: Int
     let currency: String
     let categories: [SelfCategoryStat]
-    let expenses: [ExpenseRead]
+    let expenses: [SelfExpenseRead]
 }

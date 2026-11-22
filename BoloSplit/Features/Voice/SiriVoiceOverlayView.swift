@@ -696,7 +696,7 @@ private struct VoiceResultCard: View {
                         .staggeredEntrance(index: 1)
                 }
 
-                // Created / Updated Expenses
+                // Created / Updated Shared Expenses
                 if !response.expenses.isEmpty {
                     VStack(spacing: 8) {
                         ForEach(Array(response.expenses.enumerated()), id: \.element.id) { idx, expense in
@@ -734,6 +734,38 @@ private struct VoiceResultCard: View {
                             .padding(12)
                             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .staggeredEntrance(index: idx + 2)
+                        }
+                    }
+                }
+
+                // Created / Updated Self (Personal) Expenses
+                if !response.selfExpenses.isEmpty {
+                    VStack(spacing: 8) {
+                        ForEach(Array(response.selfExpenses.enumerated()), id: \.element.id) { idx, expense in
+                            let catColor = AppTheme.categoryColor(for: expense.category)
+                            HStack(spacing: 12) {
+                                Image(systemName: AppTheme.categoryIcon(for: expense.category))
+                                    .font(.headline)
+                                    .foregroundStyle(catColor)
+                                    .frame(width: 38, height: 38)
+                                    .background(catColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(expense.description)
+                                        .font(.subheadline.weight(.semibold))
+                                    Text("Self (Personal) • \((expense.category ?? "general").capitalized)")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.brand)
+                                }
+
+                                Spacer()
+
+                                Text(CurrencyFormatter.formatINR(expense.amount))
+                                    .font(.subheadline.weight(.bold))
+                            }
+                            .padding(12)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .staggeredEntrance(index: response.expenses.count + idx + 2)
                         }
                     }
                 }

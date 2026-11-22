@@ -18,6 +18,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
     let actionType: String
     let count: Int
     let expenses: [ExpenseRead]
+    let selfExpenses: [SelfExpenseRead]
     let settlement: SettlementRead?
     let balanceSummary: BalanceSummary?
     let spokenConfirmation: String?
@@ -30,6 +31,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         case actionType
         case count
         case expenses
+        case selfExpenses
         case settlement
         case balanceSummary
         case spokenConfirmation
@@ -43,6 +45,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         actionType: String = "CREATE",
         count: Int = 1,
         expenses: [ExpenseRead] = [],
+        selfExpenses: [SelfExpenseRead] = [],
         settlement: SettlementRead? = nil,
         balanceSummary: BalanceSummary? = nil,
         spokenConfirmation: String? = nil,
@@ -54,6 +57,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         self.actionType = actionType
         self.count = count
         self.expenses = expenses
+        self.selfExpenses = selfExpenses
         self.settlement = settlement
         self.balanceSummary = balanceSummary
         self.spokenConfirmation = spokenConfirmation
@@ -68,6 +72,7 @@ struct VoiceIngestResponse: Codable, Equatable, Sendable {
         self.actionType = try container.decodeIfPresent(String.self, forKey: .actionType) ?? "CREATE"
         self.count = try container.decodeIfPresent(Int.self, forKey: .count) ?? 1
         self.expenses = try container.decodeIfPresent([ExpenseRead].self, forKey: .expenses) ?? []
+        self.selfExpenses = try container.decodeIfPresent([SelfExpenseRead].self, forKey: .selfExpenses) ?? []
         self.settlement = try container.decodeIfPresent(SettlementRead.self, forKey: .settlement)
         self.balanceSummary = try container.decodeIfPresent(BalanceSummary.self, forKey: .balanceSummary)
         self.spokenConfirmation = try container.decodeIfPresent(String.self, forKey: .spokenConfirmation)

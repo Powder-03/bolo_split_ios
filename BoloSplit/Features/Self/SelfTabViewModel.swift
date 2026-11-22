@@ -28,7 +28,7 @@ final class SelfTabViewModel {
         self.onLedgerMutated = onLedgerMutated
     }
 
-    var expenses: [ExpenseRead] {
+    var expenses: [SelfExpenseRead] {
         summary?.expenses ?? []
     }
 
@@ -100,9 +100,43 @@ final class SelfTabViewModel {
         }
     }
 
-    func deleteExpense(_ expense: ExpenseRead) async {
+    func updateSelfExpense(
+        id: UUID,
+        description: String,
+        amount: Decimal,
+        category: String,
+        date: Date
+    ) async -> Bool {
+        let trimmedDesc = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedDesc.isEmpty, amount > 0 else {
+            errorMessage = "Please enter a description and valid amount."
+            return false
+        }
+
+        isSubmitting = true
+        errorMessage = nil
         do {
-            try await ledgerService.deleteExpense(id: expense.id)
+            let payload = SelfExpenseUpdate(
+                description: trimmedDesc,
+                amount: amount,
+                category: category.lowercased(),
+                expenseDate: date
+            )
+            _ = try await ledgerService.updateSelfExpense(id: id, payload: payload)
+            isSubmitting = false
+            await loadSelfExpenses()
+            await onLedgerMutated?()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            isSubmitting = false
+            return false
+        }
+    }
+
+    func deleteExpense(_ expense: SelfExpenseRead) async {
+        do {
+            try await ledgerService.deleteSelfExpense(id: expense.id)
             await loadSelfExpenses()
             await onLedgerMutated?()
         } catch {

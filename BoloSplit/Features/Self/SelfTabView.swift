@@ -12,6 +12,7 @@ import UIKit
 struct SelfTabView: View {
     @Bindable var viewModel: SelfTabViewModel
     @State private var showAddSheet = false
+    @State private var editingExpense: SelfExpenseRead?
 
     var body: some View {
         NavigationStack {
@@ -68,16 +69,21 @@ struct SelfTabView: View {
                         } else {
                             Section(sectionTitle) {
                                 ForEach(Array(viewModel.expenses.enumerated()), id: \.element.id) { index, expense in
-                                    SelfExpenseRow(expense: expense)
-                                        .staggeredEntrance(index: index)
-                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                            Button(role: .destructive) {
-                                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                                Task { await viewModel.deleteExpense(expense) }
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
+                                    Button {
+                                        editingExpense = expense
+                                    } label: {
+                                        SelfExpenseRow(expense: expense)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .staggeredEntrance(index: index)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                            Task { await viewModel.deleteExpense(expense) }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
                                         }
+                                    }
                                 }
                             }
                         }
@@ -106,6 +112,9 @@ struct SelfTabView: View {
             }
             .sheet(isPresented: $showAddSheet) {
                 AddSelfExpenseSheet(viewModel: viewModel)
+            }
+            .sheet(item: $editingExpense) { expense in
+                EditSelfExpenseSheet(viewModel: viewModel, expense: expense)
             }
         }
     }
@@ -267,7 +276,7 @@ private struct CategoryFilterStrip: View {
 // MARK: - Solo Expense Row
 
 private struct SelfExpenseRow: View {
-    let expense: ExpenseRead
+    let expense: SelfExpenseRead
 
     private var catColor: Color {
         AppTheme.categoryColor(for: expense.category)
@@ -376,6 +385,110 @@ private struct AddSelfExpenseSheet: View {
                         guard let amount = parsedAmount else { return }
                         Task {
                             let ok = await viewModel.addSelfExpense(
+                                description: description,
+                                amount: amount,
+                                category: category,
+                                date: date
+                            )
+                            if ok {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                dismiss()
+                            }
+                        }
+                    }
+                    .disabled(!isValid || viewModel.isSubmitting)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Edit Solo Expense Sheet
+
+private struct EditSelfExpenseSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var viewModel: SelfTabViewModel
+    let expense: SelfExpenseRead
+
+    @State private var description: String
+    @State private var amountText: String
+    @State private var category: String
+    @State private var date: Date
+
+    private let categoryOptions = [
+        "general", "food", "fuel", "groceries", "travel", "shopping", "bills", "entertainment"
+    ]
+
+    init(viewModel: SelfTabViewModel, expense: SelfExpenseRead) {
+        self.viewModel = viewModel
+        self.expense = expense
+        _description = State(initialValue: expense.description)
+        _amountText = State(initialValue: NSDecimalNumber(decimal: expense.amount).stringValue)
+        _category = State(initialValue: (expense.category ?? "general").lowercased())
+        _date = State(initialValue: expense.expenseDate)
+    }
+
+    private var parsedAmount: Decimal? {
+        Decimal(string: amountText.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private var isValid: Bool {
+        !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (parsedAmount ?? 0) > 0
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Expense Details") {
+                    TextField("Description", text: $description)
+
+                    HStack {
+                        Text("₹")
+                            .foregroundStyle(.secondary)
+                        TextField("Amount", text: $amountText)
+                            .keyboardType(.decimalPad)
+                    }
+
+                    Picker("Category", selection: $category) {
+                        ForEach(categoryOptions, id: \.self) { cat in
+                            Label(cat.capitalized, systemImage: AppTheme.categoryIcon(for: cat))
+                                .tag(cat)
+                        }
+                    }
+
+                    DatePicker("Date", selection: $date, displayedComponents: [.date])
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        Task {
+                            await viewModel.deleteExpense(expense)
+                            dismiss()
+                        }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Label("Delete Solo Expense", systemImage: "trash")
+                            Spacer()
+                        }
+                    }
+                    .disabled(viewModel.isSubmitting)
+                }
+            }
+            .navigationTitle("Edit Solo Expense")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        guard let amount = parsedAmount else { return }
+                        Task {
+                            let ok = await viewModel.updateSelfExpense(
+                                id: expense.id,
                                 description: description,
                                 amount: amount,
                                 category: category,

@@ -46,9 +46,7 @@ final class AppEnvironment {
         self.groupsViewModel = GroupsTabViewModel(ledgerService: ledger)
         let activityVM = ActivityTabViewModel(ledgerService: ledger)
         self.activityViewModel = activityVM
-        self.selfViewModel = SelfTabViewModel(ledgerService: ledger) {
-            await activityVM.loadActivity()
-        }
+        self.selfViewModel = SelfTabViewModel(ledgerService: ledger)
     }
 
     func makeVoiceViewModel(groupId: UUID? = nil, groupName: String? = nil) -> VoiceViewModel {

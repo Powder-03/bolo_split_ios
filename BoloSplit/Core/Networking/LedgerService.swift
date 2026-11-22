@@ -24,7 +24,9 @@ protocol LedgerServiceProtocol {
     func createExpense(_ payload: ExpenseCreate) async throws -> ExpenseRead
     func updateExpense(id: UUID, payload: ExpenseUpdate) async throws -> ExpenseRead
     func fetchSelfExpenses(limit: Int, offset: Int, category: String?, month: Int?, year: Int?) async throws -> SelfExpensesSummary
-    func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> ExpenseRead
+    func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> SelfExpenseRead
+    func updateSelfExpense(id: UUID, payload: SelfExpenseUpdate) async throws -> SelfExpenseRead
+    func deleteSelfExpense(id: UUID) async throws
     func deleteExpense(id: UUID) async throws
     func fetchSettlements(friendId: UUID?, groupId: UUID?, limit: Int, offset: Int) async throws -> [SettlementRead]
     func createSettlement(_ payload: SettlementCreate) async throws -> SettlementRead
@@ -159,9 +161,18 @@ final class LedgerService: LedgerServiceProtocol {
         return try await apiClient.request(.get("/expenses/self", queryItems: query))
     }
 
-    func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> ExpenseRead {
+    func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> SelfExpenseRead {
         let endpoint = try Endpoint.post("/expenses/self", body: payload)
         return try await apiClient.request(endpoint)
+    }
+
+    func updateSelfExpense(id: UUID, payload: SelfExpenseUpdate) async throws -> SelfExpenseRead {
+        let endpoint = try Endpoint.patch("/expenses/self/\(id.uuidString)", body: payload)
+        return try await apiClient.request(endpoint)
+    }
+
+    func deleteSelfExpense(id: UUID) async throws {
+        try await apiClient.requestVoid(.delete("/expenses/self/\(id.uuidString)"))
     }
 
     func deleteExpense(id: UUID) async throws {

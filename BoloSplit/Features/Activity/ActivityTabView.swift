@@ -12,7 +12,6 @@ private enum ActivityFilter: String, CaseIterable, Identifiable {
     case all = "All"
     case expenses = "Expenses"
     case settlements = "Settlements"
-    case personal = "Personal"
 
     var id: String { rawValue }
 }
@@ -43,11 +42,6 @@ struct ActivityTabView: View {
                     return false
                 case .settlements:
                     return entry.isSettlement
-                case .personal:
-                    if case .expense(let exp) = entry.kind {
-                        return exp.isSoloExpense
-                    }
-                    return false
                 }
             }()
 

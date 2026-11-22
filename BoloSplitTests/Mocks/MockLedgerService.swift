@@ -33,6 +33,9 @@ final class MockLedgerService: LedgerServiceProtocol {
     var didCallFetchFriends = false
     var didCallCreateSettlement = false
     var lastSettlementPayload: SettlementCreate?
+    var deletedSharedExpenseIds: [UUID] = []
+    var deletedSelfExpenseIds: [UUID] = []
+    var updatedSelfExpenseIds: [UUID] = []
 
     func fetchBalances(groupId: UUID?) async throws -> BalanceSummary {
         if let shouldThrowError { throw shouldThrowError }
@@ -242,28 +245,49 @@ final class MockLedgerService: LedgerServiceProtocol {
         return mockSelfExpenses
     }
 
-    func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> ExpenseRead {
+    func createSelfExpense(_ payload: SelfExpenseCreate) async throws -> SelfExpenseRead {
         if let shouldThrowError { throw shouldThrowError }
-        let expense = ExpenseRead(
+        let expense = SelfExpenseRead(
             id: UUID(),
-            groupId: nil,
+            userId: UUID(),
             description: payload.description,
             amount: payload.amount,
             currency: payload.currency,
-            payerId: UUID(),
-            payerName: nil,
-            category: payload.category,
+            category: payload.category ?? "general",
             expenseDate: payload.expenseDate ?? Date(),
             isDeleted: false,
             createdAt: Date(),
-            updatedAt: Date(),
-            splits: []
+            updatedAt: Date()
         )
         return expense
     }
 
+    func updateSelfExpense(id: UUID, payload: SelfExpenseUpdate) async throws -> SelfExpenseRead {
+        if let shouldThrowError { throw shouldThrowError }
+        updatedSelfExpenseIds.append(id)
+        let existing = mockSelfExpenses.expenses.first(where: { $0.id == id })
+        return SelfExpenseRead(
+            id: id,
+            userId: existing?.userId ?? UUID(),
+            description: payload.description ?? existing?.description ?? "Updated",
+            amount: payload.amount ?? existing?.amount ?? Decimal(100),
+            currency: existing?.currency ?? "INR",
+            category: payload.category ?? existing?.category ?? "general",
+            expenseDate: payload.expenseDate ?? existing?.expenseDate ?? Date(),
+            isDeleted: false,
+            createdAt: existing?.createdAt ?? Date(),
+            updatedAt: Date()
+        )
+    }
+
+    func deleteSelfExpense(id: UUID) async throws {
+        if let shouldThrowError { throw shouldThrowError }
+        deletedSelfExpenseIds.append(id)
+    }
+
     func deleteExpense(id: UUID) async throws {
         if let shouldThrowError { throw shouldThrowError }
+        deletedSharedExpenseIds.append(id)
         mockExpenses.removeAll { $0.id == id }
     }
 

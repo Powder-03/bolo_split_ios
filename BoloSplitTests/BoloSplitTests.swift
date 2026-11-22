@@ -176,4 +176,50 @@ final class LedgerMathAndRoutingTests: XCTestCase {
         XCTAssertFalse(friendEntry?.subtitle.contains("Self") ?? true)
         XCTAssertTrue(soloEntry?.subtitle.hasPrefix("Self (Personal)") ?? false)
     }
+
+    func testSelfTabViewModelUsesDedicatedSelfExpenseEndpoints() async {
+        let userId = UUID()
+        let selfId = UUID()
+        let soloItem = SelfExpenseRead(
+            id: selfId,
+            userId: userId,
+            description: "Petrol",
+            amount: Decimal(500),
+            currency: "INR",
+            category: "fuel",
+            expenseDate: Date(),
+            isDeleted: false,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+
+        let mockLedger = MockLedgerService()
+        mockLedger.mockSelfExpenses = SelfExpensesSummary(
+            totalSpending: Decimal(500),
+            thisMonthSpending: Decimal(500),
+            totalCount: 1,
+            currency: "INR",
+            categories: [SelfCategoryStat(category: "fuel", totalAmount: Decimal(500), count: 1)],
+            expenses: [soloItem]
+        )
+
+        let selfVM = SelfTabViewModel(ledgerService: mockLedger)
+        await selfVM.loadSelfExpenses()
+        XCTAssertEqual(selfVM.expenses.count, 1)
+        XCTAssertEqual(selfVM.expenses.first?.description, "Petrol")
+
+        let updated = await selfVM.updateSelfExpense(
+            id: selfId,
+            description: "Petrol Refill",
+            amount: Decimal(600),
+            category: "fuel",
+            date: Date()
+        )
+        XCTAssertTrue(updated)
+        XCTAssertEqual(mockLedger.updatedSelfExpenseIds, [selfId])
+
+        await selfVM.deleteExpense(soloItem)
+        XCTAssertEqual(mockLedger.deletedSelfExpenseIds, [selfId])
+        XCTAssertTrue(mockLedger.deletedSharedExpenseIds.isEmpty)
+    }
 }

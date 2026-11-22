@@ -246,4 +246,54 @@ final class VoiceViewModelTests: XCTestCase {
         XCTAssertEqual(decoded.errorCode, "UNCLEAR_AUDIO")
         XCTAssertEqual(decoded.spokenConfirmation, "Sound was not clear. Please speak again clearly.")
     }
+
+    func testVoiceIngestResponseDecodesSeparatedSelfAndSharedExpenses() throws {
+        let json = """
+        {
+          "status": "SUCCESS",
+          "action_type": "MULTI_CREATE",
+          "count": 2,
+          "expenses": [
+            {
+              "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "group_id": null,
+              "description": "Lunch",
+              "amount": "500.00",
+              "currency": "INR",
+              "payer_id": "11111111-1111-1111-1111-111111111111",
+              "payer_name": "Me",
+              "category": "food",
+              "expense_date": "2026-11-22T00:00:00+05:30",
+              "is_deleted": false,
+              "created_at": "2026-11-22T10:00:00+00:00",
+              "updated_at": "2026-11-22T10:00:00+00:00",
+              "splits": []
+            }
+          ],
+          "self_expenses": [
+            {
+              "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              "user_id": "11111111-1111-1111-1111-111111111111",
+              "description": "Petrol",
+              "amount": "200.00",
+              "currency": "INR",
+              "category": "fuel",
+              "expense_date": "2026-11-22T00:00:00+05:30",
+              "is_deleted": false,
+              "created_at": "2026-11-22T10:00:00+00:00",
+              "updated_at": "2026-11-22T10:00:00+00:00"
+            }
+          ],
+          "spoken_confirmation": "2 expenses add kar diye: ₹500 Lunch aur ₹200 Petrol."
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONCoders.decoder.decode(VoiceIngestResponse.self, from: json)
+        XCTAssertEqual(decoded.status, "SUCCESS")
+        XCTAssertEqual(decoded.actionType, "MULTI_CREATE")
+        XCTAssertEqual(decoded.expenses.count, 1)
+        XCTAssertEqual(decoded.selfExpenses.count, 1)
+        XCTAssertEqual(decoded.selfExpenses.first?.description, "Petrol")
+        XCTAssertEqual(decoded.selfExpenses.first?.amount, Decimal(200))
+    }
 }
