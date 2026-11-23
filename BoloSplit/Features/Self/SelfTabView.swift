@@ -13,6 +13,7 @@ struct SelfTabView: View {
     @Bindable var viewModel: SelfTabViewModel
     @State private var showAddSheet = false
     @State private var editingExpense: SelfExpenseRead?
+    @State private var expensePendingDeletion: SelfExpenseRead?
 
     var body: some View {
         NavigationStack {
@@ -79,7 +80,7 @@ struct SelfTabView: View {
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
                                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                            Task { await viewModel.deleteExpense(expense) }
+                                            expensePendingDeletion = expense
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
@@ -115,6 +116,27 @@ struct SelfTabView: View {
             }
             .sheet(item: $editingExpense) { expense in
                 EditSelfExpenseSheet(viewModel: viewModel, expense: expense)
+            }
+            .alert(
+                "Delete Expense?",
+                isPresented: Binding(
+                    get: { expensePendingDeletion != nil },
+                    set: { if !$0 { expensePendingDeletion = nil } }
+                ),
+                presenting: expensePendingDeletion
+            ) { expense in
+                Button("Delete", role: .destructive) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    Task {
+                        await viewModel.deleteExpense(expense)
+                        expensePendingDeletion = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    expensePendingDeletion = nil
+                }
+            } message: { expense in
+                Text("Are you sure you want to delete “\(expense.description)” (\(CurrencyFormatter.formatINR(expense.amount)))? This action cannot be undone.")
             }
         }
     }
@@ -414,6 +436,7 @@ private struct EditSelfExpenseSheet: View {
     @State private var amountText: String
     @State private var category: String
     @State private var date: Date
+    @State private var showDeleteConfirmation = false
 
     private let categoryOptions = [
         "general", "food", "fuel", "groceries", "travel", "shopping", "bills", "entertainment"
@@ -462,11 +485,7 @@ private struct EditSelfExpenseSheet: View {
 
                 Section {
                     Button(role: .destructive) {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        Task {
-                            await viewModel.deleteExpense(expense)
-                            dismiss()
-                        }
+                        showDeleteConfirmation = true
                     } label: {
                         HStack {
                             Spacer()
@@ -476,6 +495,22 @@ private struct EditSelfExpenseSheet: View {
                     }
                     .disabled(viewModel.isSubmitting)
                 }
+            }
+            .confirmationDialog(
+                "Delete this expense?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Expense", role: .destructive) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    Task {
+                        await viewModel.deleteExpense(expense)
+                        dismiss()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete “\(expense.description)”? This action cannot be undone.")
             }
             .navigationTitle("Edit Solo Expense")
             .navigationBarTitleDisplayMode(.inline)
