@@ -6,8 +6,6 @@
 
 ## Demo & Screenshots
 
-> **Media Placeholders:** Capture screen recordings and screenshots during real iPhone testing and drop them into `docs/media/` (or drag-and-drop MP4/MOV files directly into GitHub's README editor).
-
 ### Video Walkthrough
 
 <!-- Replace the placeholder below after recording on your iPhone (Control Center -> Screen Recording) -->
@@ -20,17 +18,13 @@
 
 ### Screenshots
 
-| Login & Voice Overlay | Friends & Balances | Group Ledger |
-| :---: | :---: | :---: |
-| ![Login Screen](docs/media/01-login.png) | ![Friends Tab](docs/media/02-friends.png) | ![Group Detail](docs/media/03-group-detail.png) |
+| **Friends & Balances** | **Friend Detail & Settle Up** | **Groups** | **Group Ledger & Timeline** |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/media/01-friends.jpg" width="220" alt="Friends & Balances Tab" /> | <img src="docs/media/02-friend-detail.jpg" width="220" alt="Friend Detail & Settle Up" /> | <img src="docs/media/03-groups.jpg" width="220" alt="Groups Tab" /> | <img src="docs/media/04-group-detail.jpg" width="220" alt="Group Ledger & Timeline" /> |
 
-| Voice Listening Orb | Self (Personal) Spend | Activity & Settle Up |
-| :---: | :---: | :---: |
-| ![Voice Overlay](docs/media/04-voice-overlay.png) | ![Self Tab](docs/media/05-self.png) | ![Activity Tab](docs/media/06-activity.png) |
-
-| Home & Lock Screen Widget |
-| :---: |
-| ![Quick Bolo Widget](docs/media/07-widget.png) |
+| **Voice AI (`Bolo` Siri Overlay)** | **Personal Spend (Self)** | **Activity Feed** | **Account & Spoken Aliases** |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/media/05-voice-overlay.jpg" width="220" alt="Voice AI Bolo Overlay" /> | <img src="docs/media/06-self.jpg" width="220" alt="Personal Spend Self Tab" /> | <img src="docs/media/07-activity.jpg" width="220" alt="Activity Timeline Tab" /> | <img src="docs/media/08-account.jpg" width="220" alt="Account & Aliases Tab" /> |
 
 ---
 
